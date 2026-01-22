@@ -1,6 +1,6 @@
 //
-//  memossApp.swift
-//  memoss
+//  MemossApp.swift
+//  Memoss
 //
 //  Created by Vinicius Cardoso on 21/01/2026.
 //
@@ -8,10 +8,16 @@
 import SwiftUI
 
 @main
-struct memossApp: App {
+struct MemossApp: App {
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            if hasCompletedOnboarding {
+                ContentView()
+            } else {
+                OnboardingView()
+            }
         }
     }
 }
