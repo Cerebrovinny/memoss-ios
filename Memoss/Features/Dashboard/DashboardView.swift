@@ -12,6 +12,7 @@ struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Reminder.scheduledDate) private var reminders: [Reminder]
     @AppStorage("userName") private var userName = ""
+    @State private var showingCreateReminder = false
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
@@ -82,9 +83,12 @@ struct DashboardView: View {
             }
 
             FloatingActionButton {
-                // Navigate to create reminder (future feature)
+                showingCreateReminder = true
             }
             .padding(24)
+        }
+        .sheet(isPresented: $showingCreateReminder) {
+            CreateReminderView()
         }
     }
 
