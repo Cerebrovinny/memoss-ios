@@ -1,89 +1,34 @@
 # Memoss Onboarding Screen Implementation Plan
 
-**Date:** 2026-01-21
-**Feature:** Onboarding Screen for memoss — your reminder
-**Platform:** iOS (SwiftUI) - iOS 26+
-**Type:** Enhancement
-**Status:** Draft
+**Date:** 2026-01-21  
+**Feature:** Onboarding Screen for memoss — your reminder  
+**Platform:** iOS (SwiftUI) - iOS 26+  
+**Type:** Enhancement  
+**Status:** Reference (see canonical plan)
 
 ---
 
-## Overview
+## Canonical Plan Location
 
-Implement a polished, nature-inspired onboarding experience for the memoss reminder app that introduces users to the brand identity and core features while optimizing notification permission acceptance rates.
+This root-level document is intentionally minimal to avoid duplicating our feature planning content.
+The canonical and up-to-date implementation plan for the Memoss onboarding screen lives here:
 
-## Problem Statement
+- [`plans/feat-onboarding-screen.md`](plans/feat-onboarding-screen.md)
 
-First-time users need to:
-1. Understand the app's unique value proposition (custom snoozing, recurring reminders, cross-device sync)
-2. Connect emotionally with the brand through the Moss mascot
-3. Grant notification permissions (critical for a reminder app)
-4. Get started quickly without frustration
+Please refer to that file for:
+- Full problem statement and goals
+- Detailed UX and visual design considerations
+- Architecture and data flow
+- Implementation steps and milestones
 
-Research shows 77% of users stop using an app within the first 3 days, and poorly-timed permission requests cause 25% of users to abandon apps after a single session.
-
-## Proposed Solution
-
-A 5-screen carousel-style onboarding flow with progressive value demonstration before requesting notification permissions:
-
-1. **Welcome Screen** - Brand identity, mascot introduction
-2. **Custom Snooze Screen** - Key differentiator feature
-3. **Recurring Reminders Screen** - Power user feature
-4. **Cross-Device Sync Screen** - Reliability promise
-5. **Notification Permission Screen** - Contextual permission request
+This file is retained only as an entry point for discovery and to direct readers to the single source of truth.
 
 ---
 
-## Architecture Flow
+## Notes
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant App as memossApp
-    participant OnboardingView
-    participant FeatureSlide
-    participant PermissionView
-    participant UNCenter as UNUserNotificationCenter
-    participant MainApp as ReminderListScreen
-
-    User->>App: Launch app (first time)
-    App->>App: Check @AppStorage("hasCompletedOnboarding")
-
-    alt Onboarding not completed
-        App->>OnboardingView: Present onboarding
-        OnboardingView->>OnboardingView: Initialize with screen index 0
-
-        loop For each feature screen (0-3)
-            OnboardingView->>FeatureSlide: Display current slide
-            FeatureSlide->>User: Show mascot + feature content
-            User->>OnboardingView: Swipe or tap Continue
-            OnboardingView->>OnboardingView: Advance to next screen
-        end
-
-        OnboardingView->>PermissionView: Display permission request
-        PermissionView->>User: Explain notification importance
-        User->>PermissionView: Tap "Enable Notifications"
-        PermissionView->>UNCenter: requestAuthorization(options:)
-        UNCenter-->>PermissionView: Return authorization status
-
-        alt Permission granted
-            PermissionView->>User: Show success (excited mascot)
-        else Permission denied
-            PermissionView->>User: Show understanding (calm mascot)
-        end
-
-        PermissionView->>OnboardingView: Complete onboarding
-        OnboardingView->>App: Set hasCompletedOnboarding = true
-        App->>MainApp: Transition to main app
-    else Onboarding completed
-        App->>MainApp: Show main app directly
-    end
-```
-
----
-
-## Technical Approach
-
+- When updating the onboarding screen plan, edit **only** `plans/feat-onboarding-screen.md`.
+- If the structure or status of the feature plan changes, ensure this reference continues to point to the correct canonical document.
 ### File Structure
 
 ```
