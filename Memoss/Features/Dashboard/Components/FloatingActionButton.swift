@@ -14,10 +14,10 @@ struct FloatingActionButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: {
+        Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             action()
-        }) {
+        } label: {
             Image(systemName: "plus")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(.white)
