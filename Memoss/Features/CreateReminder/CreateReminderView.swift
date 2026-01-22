@@ -72,7 +72,7 @@ struct CreateReminderView: View {
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(isTitleValid ? MemossColors.brandPrimary : MemossColors.textSecondary)
                     .disabled(!isTitleValid)
-                    .accessibilityLabel(isTitleValid ? "Save reminder" : "Save, enter title first")
+                    .accessibilityLabel(isTitleValid ? "Save reminder" : "Save button disabled, enter a title first")
                 }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
@@ -81,7 +81,7 @@ struct CreateReminderView: View {
                     }
                 }
             }
-            .interactiveDismissDisabled(!title.isEmpty)
+            .interactiveDismissDisabled(isTitleValid)
         }
         .onAppear {
             isTitleFocused = true
