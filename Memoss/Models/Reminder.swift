@@ -10,7 +10,7 @@ import Foundation
 
 @Model
 final class Reminder {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var title: String
     var scheduledDate: Date
     var isCompleted: Bool

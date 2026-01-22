@@ -11,14 +11,10 @@ struct ReminderCard: View {
     let reminder: Reminder
     let onToggle: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             Button(action: {
-                if !reduceMotion {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                }
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onToggle()
             }) {
                 Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")

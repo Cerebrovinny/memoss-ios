@@ -36,6 +36,7 @@ struct EmptyStateView: View {
             }
             .accessibilityElement(children: .combine)
 
+            // Double Spacer creates 2:1 ratio, pushing content into upper third
             Spacer()
             Spacer()
         }

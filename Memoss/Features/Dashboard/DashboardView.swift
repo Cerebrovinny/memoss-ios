@@ -58,7 +58,7 @@ struct DashboardView: View {
                     } else {
                         if !incompleteReminders.isEmpty {
                             TaskSection(
-                                title: "Today's tasks",
+                                title: "To Do",
                                 icon: "leaf.fill",
                                 iconColor: MemossColors.brandPrimary,
                                 reminders: incompleteReminders,
@@ -132,13 +132,14 @@ private struct TaskSection: View {
 
 #Preview("With Reminders") {
     let config = ModelConfiguration(isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: Reminder.self, configurations: config)
+    let container = (try? ModelContainer(for: Reminder.self, configurations: config))
+        ?? (try! ModelContainer(for: Reminder.self))
 
     let sampleReminders = [
-        Reminder(title: "Water the plants", scheduledDate: Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now)!),
-        Reminder(title: "Call mom for her birthday", scheduledDate: Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: .now)!),
-        Reminder(title: "Pick up groceries", scheduledDate: Calendar.current.date(bySettingHour: 14, minute: 0, second: 0, of: .now)!, isCompleted: true),
-        Reminder(title: "Take Buddy to the vet", scheduledDate: Calendar.current.date(bySettingHour: 15, minute: 0, second: 0, of: .now)!)
+        Reminder(title: "Water the plants", scheduledDate: Calendar.current.date(bySettingHour: 9, minute: 0, second: 0, of: .now) ?? .now),
+        Reminder(title: "Call mom for her birthday", scheduledDate: Calendar.current.date(bySettingHour: 11, minute: 0, second: 0, of: .now) ?? .now),
+        Reminder(title: "Pick up groceries", scheduledDate: Calendar.current.date(bySettingHour: 14, minute: 0, second: 0, of: .now) ?? .now, isCompleted: true),
+        Reminder(title: "Take Buddy to the vet", scheduledDate: Calendar.current.date(bySettingHour: 15, minute: 0, second: 0, of: .now) ?? .now)
     ]
 
     for reminder in sampleReminders {
