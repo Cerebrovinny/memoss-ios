@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 import UserNotifications
 
 // MARK: - Colors (inline for MVP, extract when shared by 3+ features)
@@ -116,8 +117,12 @@ struct OnboardingView: View {
     private var navigationControls: some View {
         HStack {
             Button("Skip") {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                if reduceMotion {
                     currentPage = slides.count
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        currentPage = slides.count
+                    }
                 }
             }
             .font(.body.weight(.medium))
@@ -129,9 +134,15 @@ struct OnboardingView: View {
             Spacer()
 
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                if reduceMotion {
                     if currentPage < totalPages - 1 {
                         currentPage += 1
+                    }
+                } else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        if currentPage < totalPages - 1 {
+                            currentPage += 1
+                        }
                     }
                 }
             } label: {
@@ -148,8 +159,12 @@ struct OnboardingView: View {
     }
 
     private func completeOnboarding() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        if reduceMotion {
             hasCompletedOnboarding = true
+        } else {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                hasCompletedOnboarding = true
+            }
         }
     }
 }
@@ -555,26 +570,31 @@ private struct NotificationPermissionView: View {
         }
     }
 
+    @MainActor
     private func requestPermission() async {
         isRequesting = true
         do {
             let granted = try await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
-            await MainActor.run {
+            if reduceMotion {
+                permissionState = granted ? .granted : .denied
+            } else {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     permissionState = granted ? .granted : .denied
                 }
-                isRequesting = false
-                UINotificationFeedbackGenerator().notificationOccurred(granted ? .success : .warning)
             }
+            isRequesting = false
+            UINotificationFeedbackGenerator().notificationOccurred(granted ? .success : .warning)
         } catch {
-            await MainActor.run {
+            if reduceMotion {
+                permissionState = .error
+            } else {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     permissionState = .error
                 }
-                isRequesting = false
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
             }
+            isRequesting = false
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
     }
 }
