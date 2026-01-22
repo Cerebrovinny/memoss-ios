@@ -13,10 +13,10 @@ struct ReminderCard: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            Button(action: {
+            Button {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 onToggle()
-            }) {
+            } label: {
                 Image(systemName: reminder.isCompleted ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 24))
                     .foregroundStyle(reminder.isCompleted ? MemossColors.brandPrimary : MemossColors.textSecondary)
@@ -47,7 +47,9 @@ struct ReminderCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .shadow(color: MemossColors.brandPrimary.opacity(0.08), radius: 12, y: 4)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(reminder.title), scheduled for \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))")
+        .accessibilityLabel(
+            "\(reminder.title), scheduled for \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))"
+        )
         .accessibilityHint(reminder.isCompleted ? "Double tap to mark as incomplete" : "Double tap to mark as complete")
         .accessibilityAddTraits(reminder.isCompleted ? [.isButton, .isSelected] : .isButton)
     }
@@ -55,10 +57,7 @@ struct ReminderCard: View {
 
 #Preview("Incomplete") {
     ReminderCard(
-        reminder: {
-            let r = Reminder(title: "Water the plants", scheduledDate: Date())
-            return r
-        }(),
+        reminder: Reminder(title: "Water the plants", scheduledDate: Date()),
         onToggle: {}
     )
     .padding()
@@ -67,10 +66,7 @@ struct ReminderCard: View {
 
 #Preview("Completed") {
     ReminderCard(
-        reminder: {
-            let r = Reminder(title: "Call mom", scheduledDate: Date(), isCompleted: true)
-            return r
-        }(),
+        reminder: Reminder(title: "Call mom", scheduledDate: Date(), isCompleted: true),
         onToggle: {}
     )
     .padding()

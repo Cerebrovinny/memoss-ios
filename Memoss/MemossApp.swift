@@ -10,7 +10,16 @@ import SwiftUI
 
 @main
 struct MemossApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+
+    static let sharedModelContainer: ModelContainer = {
+        do {
+            return try ModelContainer(for: Reminder.self)
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
+    }()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +29,6 @@ struct MemossApp: App {
                 OnboardingView()
             }
         }
-        .modelContainer(for: Reminder.self)
+        .modelContainer(Self.sharedModelContainer)
     }
 }

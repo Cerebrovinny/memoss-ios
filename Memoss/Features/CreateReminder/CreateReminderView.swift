@@ -194,8 +194,12 @@ struct CreateReminderView: View {
         )
 
         modelContext.insert(reminder)
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        dismiss()
+
+        Task { @MainActor in
+            await NotificationService.shared.scheduleNotification(for: reminder)
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            dismiss()
+        }
     }
 
     // MARK: - Helpers

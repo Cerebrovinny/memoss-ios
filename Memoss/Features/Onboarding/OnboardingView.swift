@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 //
 //  OnboardingView.swift
 //  Memoss
@@ -36,6 +37,7 @@ private struct OnboardingSlide: Identifiable {
         OnboardingSlide(
             id: 0,
             title: "Hello, I'm memoss",
+            // swiftlint:disable:next line_length
             description: "Like moss on a forest floor, I'll gently grow alongside you—catching the things you might forget.",
             systemImage: nil,
             iconGradient: [OnboardingColors.brandPrimary, OnboardingColors.brandPrimaryDark],
@@ -300,7 +302,10 @@ private struct SlideView: View {
                 Circle()
                     .stroke(
                         LinearGradient(
-                            colors: [OnboardingColors.brandPrimary.opacity(0.3), OnboardingColors.brandPrimaryDark.opacity(0.2)],
+                            colors: [
+                                OnboardingColors.brandPrimary.opacity(0.3),
+                                OnboardingColors.brandPrimaryDark.opacity(0.2)
+                            ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
@@ -311,7 +316,10 @@ private struct SlideView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [OnboardingColors.brandPrimary.opacity(0.12), OnboardingColors.brandPrimaryDark.opacity(0.08)],
+                            colors: [
+                                OnboardingColors.brandPrimary.opacity(0.12),
+                                OnboardingColors.brandPrimaryDark.opacity(0.08)
+                            ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
