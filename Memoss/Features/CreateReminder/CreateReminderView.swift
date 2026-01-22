@@ -195,12 +195,10 @@ struct CreateReminderView: View {
 
         modelContext.insert(reminder)
 
-        Task {
+        Task { @MainActor in
             await NotificationService.shared.scheduleNotification(for: reminder)
-            await MainActor.run {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                dismiss()
-            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            dismiss()
         }
     }
 

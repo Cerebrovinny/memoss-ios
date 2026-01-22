@@ -13,29 +13,22 @@ struct MemossApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
-    let modelContainer: ModelContainer
-
-    init() {
+    static let sharedModelContainer: ModelContainer = {
         do {
-            modelContainer = try ModelContainer(for: Reminder.self)
+            return try ModelContainer(for: Reminder.self)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
-    }
+    }()
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                if hasCompletedOnboarding {
-                    DashboardView()
-                } else {
-                    OnboardingView()
-                }
-            }
-            .onAppear {
-                appDelegate.modelContainer = modelContainer
+            if hasCompletedOnboarding {
+                DashboardView()
+            } else {
+                OnboardingView()
             }
         }
-        .modelContainer(modelContainer)
+        .modelContainer(Self.sharedModelContainer)
     }
 }

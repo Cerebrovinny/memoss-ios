@@ -11,9 +11,6 @@ import UserNotifications
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
-    /// Shared ModelContainer - set by MemossApp on launch
-    var modelContainer: ModelContainer?
-
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
@@ -62,18 +59,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     private func handleMarkComplete(reminderId: String) async {
-        guard let uuid = UUID(uuidString: reminderId),
-              let context = modelContainer?.mainContext else {
-            return
-        }
+        guard let uuid = UUID(uuidString: reminderId) else { return }
 
+        let context = MemossApp.sharedModelContainer.mainContext
         let descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == uuid })
         guard let reminder = try? context.fetch(descriptor).first else {
             return
         }
 
         reminder.isCompleted = true
-        // SwiftData auto-saves, no explicit save needed
 
         // Remove from notification center
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [reminderId])
