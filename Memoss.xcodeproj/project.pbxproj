@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXFileReference section */
-		014EF6F22F218217006C53C9 /* memoss.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = memoss.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		014EF6F22F218217006C53C9 /* Memoss.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Memoss.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		014EF6F42F218217006C53C9 /* memoss */ = {
+		014EF6F42F218217006C53C9 /* Memoss */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = memoss;
+			path = Memoss;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -32,7 +32,7 @@
 		014EF6E92F218217006C53C9 = {
 			isa = PBXGroup;
 			children = (
-				014EF6F42F218217006C53C9 /* memoss */,
+				014EF6F42F218217006C53C9 /* Memoss */,
 				014EF6F32F218217006C53C9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -40,7 +40,7 @@
 		014EF6F32F218217006C53C9 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				014EF6F22F218217006C53C9 /* memoss.app */,
+				014EF6F22F218217006C53C9 /* Memoss.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -48,9 +48,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		014EF6F12F218217006C53C9 /* memoss */ = {
+		014EF6F12F218217006C53C9 /* Memoss */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 014EF6FD2F218218006C53C9 /* Build configuration list for PBXNativeTarget "memoss" */;
+			buildConfigurationList = 014EF6FD2F218218006C53C9 /* Build configuration list for PBXNativeTarget "Memoss" */;
 			buildPhases = (
 				014EF6EE2F218217006C53C9 /* Sources */,
 				014EF6EF2F218217006C53C9 /* Frameworks */,
@@ -61,13 +61,13 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				014EF6F42F218217006C53C9 /* memoss */,
+				014EF6F42F218217006C53C9 /* Memoss */,
 			);
-			name = memoss;
+			name = Memoss;
 			packageProductDependencies = (
 			);
 			productName = memoss;
-			productReference = 014EF6F22F218217006C53C9 /* memoss.app */;
+			productReference = 014EF6F22F218217006C53C9 /* Memoss.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -85,7 +85,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 014EF6ED2F218217006C53C9 /* Build configuration list for PBXProject "memoss" */;
+			buildConfigurationList = 014EF6ED2F218217006C53C9 /* Build configuration list for PBXProject "Memoss" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -99,7 +99,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				014EF6F12F218217006C53C9 /* memoss */,
+				014EF6F12F218217006C53C9 /* Memoss */,
 			);
 		};
 /* End PBXProject section */
@@ -313,7 +313,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		014EF6ED2F218217006C53C9 /* Build configuration list for PBXProject "memoss" */ = {
+		014EF6ED2F218217006C53C9 /* Build configuration list for PBXProject "Memoss" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				014EF6FB2F218218006C53C9 /* Debug */,
@@ -322,7 +322,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		014EF6FD2F218218006C53C9 /* Build configuration list for PBXNativeTarget "memoss" */ = {
+		014EF6FD2F218218006C53C9 /* Build configuration list for PBXNativeTarget "Memoss" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				014EF6FE2F218218006C53C9 /* Debug */,
