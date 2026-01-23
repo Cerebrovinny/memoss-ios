@@ -28,4 +28,16 @@ enum MemossColors {
     static let success = Color(hex: "#22C55E")
     static let warning = Color(hex: "#EAB308")
     static let error = Color(hex: "#F43F5E")
+
+    // Tag Colors
+    static let tagColors: [Color] = [
+        brandPrimary,               // Moss Green #22C55E
+        Color(hex: "#3B82F6"),      // Blue
+        Color(hex: "#EC4899"),      // Pink
+        Color(hex: "#F97316"),      // Orange
+        Color(hex: "#8B5CF6"),      // Purple
+        Color(hex: "#14B8A6"),      // Teal
+        accent,                     // Yellow #EAB308
+        Color(hex: "#6B7280"),      // Gray
+    ]
 }

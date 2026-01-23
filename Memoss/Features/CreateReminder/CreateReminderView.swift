@@ -16,6 +16,7 @@ struct CreateReminderView: View {
     @State private var title = ""
     @State private var scheduledDate = Date()
     @State private var hasAttemptedSave = false
+    @State private var selectedTags: [Tag] = []
     @FocusState private var isTitleFocused: Bool
 
     private var isTitleValid: Bool {
@@ -39,6 +40,8 @@ struct CreateReminderView: View {
                     datePickerCard
 
                     timePickerCard
+
+                    TagPickerView(selectedTags: $selectedTags)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
@@ -192,6 +195,7 @@ struct CreateReminderView: View {
             title: title.trimmingCharacters(in: .whitespaces),
             scheduledDate: scheduledDate
         )
+        reminder.tags = selectedTags
 
         modelContext.insert(reminder)
 
@@ -216,5 +220,5 @@ struct CreateReminderView: View {
 
 #Preview {
     CreateReminderView()
-        .modelContainer(for: Reminder.self, inMemory: true)
+        .modelContainer(for: [Reminder.self, Tag.self], inMemory: true)
 }

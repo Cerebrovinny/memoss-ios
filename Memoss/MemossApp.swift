@@ -15,7 +15,7 @@ struct MemossApp: App {
 
     static let sharedModelContainer: ModelContainer = {
         do {
-            return try ModelContainer(for: Reminder.self)
+            return try ModelContainer(for: Reminder.self, Tag.self)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
@@ -23,12 +23,36 @@ struct MemossApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                DashboardView()
-            } else {
-                OnboardingView()
+            Group {
+                if hasCompletedOnboarding {
+                    DashboardView()
+                } else {
+                    OnboardingView()
+                }
+            }
+            .task {
+                await Self.seedDefaultTags()
             }
         }
         .modelContainer(Self.sharedModelContainer)
+    }
+
+    @MainActor
+    private static func seedDefaultTags() async {
+        let context = sharedModelContainer.mainContext
+
+        let descriptor = FetchDescriptor<Tag>()
+        guard (try? context.fetchCount(descriptor)) == 0 else { return }
+
+        let defaults: [(name: String, hex: String)] = [
+            ("Personal", "#22C55E"),
+            ("Work", "#3B82F6"),
+            ("Health", "#EC4899"),
+            ("Shopping", "#F97316")
+        ]
+
+        for tag in defaults {
+            context.insert(Tag(name: tag.name, colorHex: tag.hex))
+        }
     }
 }
