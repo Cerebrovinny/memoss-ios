@@ -140,21 +140,37 @@ final class NotificationService {
     // MARK: - Categories
 
     func registerCategories() {
-        let markCompleteAction = UNNotificationAction(
-            identifier: NotificationAction.markComplete.rawValue,
-            title: "Mark Complete",
-            options: [.destructive]
+        // Quick snooze presets (no app open)
+        let snooze15 = UNNotificationAction(
+            identifier: NotificationAction.snooze15.rawValue,
+            title: "15 min",
+            options: []
         )
 
-        let snoozeAction = UNNotificationAction(
-            identifier: NotificationAction.snooze.rawValue,
-            title: "Snooze (15 min)",
+        let snooze60 = UNNotificationAction(
+            identifier: NotificationAction.snooze60.rawValue,
+            title: "1 hour",
             options: []
+        )
+
+        // Text input for custom duration - NO APP OPEN!
+        let snoozeCustom = UNTextInputNotificationAction(
+            identifier: NotificationAction.snoozeCustom.rawValue,
+            title: "Custom...",
+            options: [],
+            textInputButtonTitle: "Snooze",
+            textInputPlaceholder: "Minutes (e.g., 22)"
+        )
+
+        let markCompleteAction = UNNotificationAction(
+            identifier: NotificationAction.markComplete.rawValue,
+            title: "Done",
+            options: [.destructive]
         )
 
         let category = UNNotificationCategory(
             identifier: NotificationCategory.reminder.rawValue,
-            actions: [markCompleteAction, snoozeAction],
+            actions: [snooze15, snooze60, snoozeCustom, markCompleteAction],
             intentIdentifiers: [],
             options: .customDismissAction
         )
@@ -203,5 +219,8 @@ enum NotificationCategory: String {
 
 enum NotificationAction: String {
     case markComplete = "MARK_COMPLETE_ACTION"
-    case snooze = "SNOOZE_ACTION"
+    case snooze = "SNOOZE_ACTION"  // Legacy
+    case snooze15 = "snooze_15"
+    case snooze60 = "snooze_60"
+    case snoozeCustom = "snooze_custom"
 }
