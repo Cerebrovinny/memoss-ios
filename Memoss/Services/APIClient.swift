@@ -10,7 +10,7 @@ import Foundation
 
 // MARK: - API Configuration
 
-enum APIEnvironment {
+nonisolated enum APIEnvironment: Sendable {
     case development
     case production
 
@@ -26,7 +26,7 @@ enum APIEnvironment {
 
 // MARK: - API Error
 
-enum APIError: LocalizedError {
+nonisolated enum APIError: LocalizedError, Sendable {
     case unauthorized
     case forbidden
     case notFound
@@ -60,17 +60,17 @@ enum APIError: LocalizedError {
 
 // MARK: - API Response Types
 
-struct APIErrorResponse: Decodable {
+nonisolated struct APIErrorResponse: Decodable, Sendable {
     let error: APIErrorDetail
 }
 
-struct APIErrorDetail: Decodable {
+nonisolated struct APIErrorDetail: Decodable, Sendable {
     let code: String
     let message: String
     let field: String?
 }
 
-struct TokenResponse: Decodable {
+nonisolated struct TokenResponse: Decodable, Sendable {
     let accessToken: String
     let refreshToken: String
     let expiresIn: Int
@@ -86,77 +86,125 @@ struct TokenResponse: Decodable {
 
 // MARK: - Endpoint
 
-struct Endpoint {
+nonisolated struct Endpoint: Sendable {
     let path: String
     let method: HTTPMethod
     let body: Data?
     let requiresAuth: Bool
 
-    enum HTTPMethod: String {
+    enum HTTPMethod: String, Sendable {
         case GET, POST, PUT, DELETE
     }
 
-    init(path: String, method: HTTPMethod = .GET, body: Encodable? = nil, requiresAuth: Bool = true) {
+    init(path: String, method: HTTPMethod = .GET, body: (any Encodable & Sendable)? = nil, requiresAuth: Bool = true) {
         self.path = path
         self.method = method
         self.requiresAuth = requiresAuth
 
         if let body = body {
-            self.body = try? JSONEncoder().encode(body)
+            self.body = try? JSONEncoder().encode(AnyEncodable(body))
         } else {
             self.body = nil
         }
     }
 }
 
+// Helper for encoding any Encodable
+private nonisolated struct AnyEncodable: Encodable, @unchecked Sendable {
+    private let encode: @Sendable (Encoder) throws -> Void
+
+    nonisolated init(_ wrapped: any Encodable & Sendable) {
+        self.encode = { encoder in
+            try wrapped.encode(to: encoder)
+        }
+    }
+
+    nonisolated func encode(to encoder: Encoder) throws {
+        try encode(encoder)
+    }
+}
+
 // MARK: - API Client
 
-@MainActor
-final class APIClient: ObservableObject {
-    static let shared = APIClient()
+/// API Client with network operations running OFF the main thread
+final class APIClient: ObservableObject, @unchecked Sendable {
+    nonisolated static let shared = APIClient()
 
     private let environment: APIEnvironment
     private let keychainService: KeychainService
-    private var accessToken: String?
-    private var isRefreshing = false
+    private let lock = NSLock()
 
-    @Published var isAuthenticated = false
+    private nonisolated(unsafe) var _accessToken: String?
+    private nonisolated(unsafe) var _isRefreshing = false
 
-    init(environment: APIEnvironment = .production, keychainService: KeychainService = .shared) {
+    @MainActor @Published var isAuthenticated = false
+
+    nonisolated init(environment: APIEnvironment = .production, keychainService: KeychainService = .shared) {
         self.environment = environment
         self.keychainService = keychainService
+    }
 
+    /// Call this on app launch to restore auth state
+    @MainActor
+    func restoreAuthState() {
         if keychainService.getRefreshToken() != nil {
             self.isAuthenticated = true
         }
     }
 
-    // MARK: - Token Management
+    // MARK: - Token Management (Main Actor for UI state)
 
+    @MainActor
     func setTokens(access: String, refresh: String) {
-        self.accessToken = access
+        lock.lock()
+        self._accessToken = access
+        lock.unlock()
         keychainService.setRefreshToken(refresh)
         isAuthenticated = true
     }
 
+    @MainActor
     func clearTokens() {
-        self.accessToken = nil
+        lock.lock()
+        self._accessToken = nil
+        lock.unlock()
         keychainService.deleteRefreshToken()
         isAuthenticated = false
     }
 
-    // MARK: - Request
+    private nonisolated var accessToken: String? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _accessToken
+    }
 
-    func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
-        var urlRequest = makeRequest(endpoint)
+    private nonisolated var isRefreshing: Bool {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _isRefreshing
+        }
+        set {
+            lock.lock()
+            _isRefreshing = newValue
+            lock.unlock()
+        }
+    }
+
+    // MARK: - Request (runs on background thread)
+
+    /// Perform a network request - runs on a background thread, never blocks main
+    nonisolated func request<T: Decodable & Sendable>(_ endpoint: Endpoint) async throws -> T {
+        let urlRequest = makeRequest(endpoint)
+        var mutableRequest = urlRequest
 
         if endpoint.requiresAuth {
             if let token = accessToken {
-                urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                mutableRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             }
         }
 
-        let (data, response) = try await performRequest(urlRequest)
+        let (data, response) = try await performRequest(mutableRequest)
         let httpResponse = response as? HTTPURLResponse
 
         if httpResponse?.statusCode == 401, endpoint.requiresAuth, !isRefreshing {
@@ -174,16 +222,17 @@ final class APIClient: ObservableObject {
         }
     }
 
-    func requestVoid(_ endpoint: Endpoint) async throws {
-        var urlRequest = makeRequest(endpoint)
+    nonisolated func requestVoid(_ endpoint: Endpoint) async throws {
+        let urlRequest = makeRequest(endpoint)
+        var mutableRequest = urlRequest
 
         if endpoint.requiresAuth {
             if let token = accessToken {
-                urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                mutableRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             }
         }
 
-        let (data, response) = try await performRequest(urlRequest)
+        let (data, response) = try await performRequest(mutableRequest)
         let httpResponse = response as? HTTPURLResponse
 
         if httpResponse?.statusCode == 401, endpoint.requiresAuth, !isRefreshing {
@@ -196,11 +245,12 @@ final class APIClient: ObservableObject {
 
     // MARK: - Private Helpers
 
-    private func makeRequest(_ endpoint: Endpoint) -> URLRequest {
+    private nonisolated func makeRequest(_ endpoint: Endpoint) -> URLRequest {
         let url = environment.baseURL.appendingPathComponent(endpoint.path)
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10 // 10 second timeout
 
         if let body = endpoint.body {
             request.httpBody = body
@@ -209,7 +259,7 @@ final class APIClient: ObservableObject {
         return request
     }
 
-    private func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
+    private nonisolated func performRequest(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
             return try await URLSession.shared.data(for: request)
         } catch {
@@ -217,7 +267,7 @@ final class APIClient: ObservableObject {
         }
     }
 
-    private func handleErrorResponse(data: Data, statusCode: Int) throws {
+    private nonisolated func handleErrorResponse(data: Data, statusCode: Int) throws {
         guard statusCode >= 400 else { return }
 
         if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
@@ -251,46 +301,65 @@ final class APIClient: ObservableObject {
         }
     }
 
-    private func handleUnauthorized<T: Decodable>(endpoint: Endpoint) async throws -> T {
+    private nonisolated func handleUnauthorized<T: Decodable & Sendable>(endpoint: Endpoint) async throws -> T {
         isRefreshing = true
         defer { isRefreshing = false }
 
         guard let refreshToken = keychainService.getRefreshToken() else {
-            clearTokens()
+            await clearTokensAsync()
             throw APIError.unauthorized
         }
 
         do {
-            let tokens = try await refreshTokens(refreshToken)
-            setTokens(access: tokens.accessToken, refresh: tokens.refreshToken)
+            let tokens = try await refreshTokensInternal(refreshToken)
+            await setTokensAsync(access: tokens.accessToken, refresh: tokens.refreshToken)
             return try await request(endpoint)
         } catch {
-            clearTokens()
+            await clearTokensAsync()
             throw APIError.unauthorized
         }
     }
 
-    private func handleUnauthorizedVoid(endpoint: Endpoint) async throws {
+    private nonisolated func handleUnauthorizedVoid(endpoint: Endpoint) async throws {
         isRefreshing = true
         defer { isRefreshing = false }
 
         guard let refreshToken = keychainService.getRefreshToken() else {
-            clearTokens()
+            await clearTokensAsync()
             throw APIError.unauthorized
         }
 
         do {
-            let tokens = try await refreshTokens(refreshToken)
-            setTokens(access: tokens.accessToken, refresh: tokens.refreshToken)
+            let tokens = try await refreshTokensInternal(refreshToken)
+            await setTokensAsync(access: tokens.accessToken, refresh: tokens.refreshToken)
             try await requestVoid(endpoint)
         } catch {
-            clearTokens()
+            await clearTokensAsync()
             throw APIError.unauthorized
         }
     }
 
-    private func refreshTokens(_ refreshToken: String) async throws -> TokenResponse {
-        struct RefreshRequest: Encodable {
+    // Async wrappers for MainActor token management
+    @MainActor
+    private func setTokensAsync(access: String, refresh: String) {
+        lock.lock()
+        self._accessToken = access
+        lock.unlock()
+        keychainService.setRefreshToken(refresh)
+        isAuthenticated = true
+    }
+
+    @MainActor
+    private func clearTokensAsync() {
+        lock.lock()
+        self._accessToken = nil
+        lock.unlock()
+        keychainService.deleteRefreshToken()
+        isAuthenticated = false
+    }
+
+    private nonisolated func refreshTokensInternal(_ refreshToken: String) async throws -> TokenResponse {
+        struct RefreshRequest: Encodable, Sendable {
             let refreshToken: String
 
             enum CodingKeys: String, CodingKey {
@@ -305,6 +374,15 @@ final class APIClient: ObservableObject {
             requiresAuth: false
         )
 
-        return try await request(endpoint)
+        // Direct network call without going through request() to avoid recursion issues
+        let urlRequest = makeRequest(endpoint)
+        let (data, response) = try await performRequest(urlRequest)
+        let httpResponse = response as? HTTPURLResponse
+
+        try handleErrorResponse(data: data, statusCode: httpResponse?.statusCode ?? 0)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(TokenResponse.self, from: data)
     }
 }

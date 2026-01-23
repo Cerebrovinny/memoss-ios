@@ -15,7 +15,6 @@ struct DashboardView: View {
     @State private var showingCreateReminder = false
     @State private var selectedReminder: Reminder?
     @State private var showingSettings = false
-    @StateObject private var syncService = SyncService.shared
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
@@ -114,8 +113,8 @@ struct DashboardView: View {
             SettingsView()
         }
         .task {
-            // Sync on app launch if authenticated
-            await syncService.syncAll(modelContext: modelContext)
+            // Sync on app launch if authenticated (fire and forget)
+            await SyncService.shared.syncAll(modelContext: modelContext)
         }
     }
 

@@ -185,7 +185,12 @@ private class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = scene.windows.first else {
-            return UIWindow()
+            // Create a window with the first available window scene
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                return UIWindow(windowScene: windowScene)
+            }
+            // This fallback should never be reached in normal conditions
+            fatalError("No window scene available for Apple Sign In presentation")
         }
         return window
     }
@@ -193,7 +198,7 @@ private class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, 
 
 // MARK: - Request Types
 
-private struct LogoutRequest: Encodable {
+private struct LogoutRequest: Encodable, Sendable {
     let refreshToken: String
 
     enum CodingKeys: String, CodingKey {

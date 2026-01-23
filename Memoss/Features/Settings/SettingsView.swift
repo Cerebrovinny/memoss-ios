@@ -12,8 +12,6 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var authService = AuthService.shared
-    @StateObject private var syncService = SyncService.shared
 
     @State private var showSignOutAlert = false
     @State private var showDeleteAccountAlert = false
@@ -72,7 +70,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Sync")
 
-            if authService.isAuthenticated {
+            if AuthService.shared.isAuthenticated {
                 signedInCard
             } else {
                 signInCard
@@ -91,13 +89,13 @@ struct SettingsView: View {
                     Text("Signed In")
                         .font(.headline.weight(.semibold))
 
-                    if let email = authService.userEmail {
+                    if let email = AuthService.shared.userEmail {
                         Text(email)
                             .font(.subheadline)
                             .foregroundStyle(MemossColors.textSecondary)
                     }
 
-                    if let provider = authService.authProvider {
+                    if let provider = AuthService.shared.authProvider {
                         Text("via \(provider.rawValue.capitalized)")
                             .font(.caption)
                             .foregroundStyle(MemossColors.textSecondary)
@@ -106,7 +104,7 @@ struct SettingsView: View {
 
                 Spacer()
 
-                if syncService.isSyncing {
+                if SyncService.shared.isSyncing {
                     ProgressView()
                         .tint(MemossColors.brandPrimary)
                 }
@@ -114,7 +112,7 @@ struct SettingsView: View {
 
             Divider()
 
-            if let lastSync = syncService.lastSyncDate {
+            if let lastSync = SyncService.shared.lastSyncDate {
                 HStack {
                     Text("Last synced")
                         .font(.subheadline)
@@ -140,7 +138,7 @@ struct SettingsView: View {
                 .background(MemossColors.brandPrimary.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(syncService.isSyncing)
+            .disabled(SyncService.shared.isSyncing)
 
             Divider()
 
@@ -197,7 +195,7 @@ struct SettingsView: View {
             SignInWithAppleButton(.signIn) { request in
                 request.requestedScopes = [.email]
             } onCompletion: { _ in
-                // Handled by authService
+                // Handled by AuthService.shared
             }
             .signInWithAppleButtonStyle(.black)
             .frame(height: 50)
@@ -263,7 +261,7 @@ struct SettingsView: View {
         errorMessage = nil
 
         do {
-            try await authService.signInWithApple()
+            try await AuthService.shared.signInWithApple()
             await sync()
         } catch AuthError.cancelled {
             // User cancelled, no error
@@ -275,16 +273,16 @@ struct SettingsView: View {
     }
 
     private func sync() async {
-        await syncService.syncAll(modelContext: modelContext)
+        await SyncService.shared.syncAll(modelContext: modelContext)
     }
 
     private func signOut() async {
-        await authService.signOut()
+        await AuthService.shared.signOut()
     }
 
     private func deleteAccount() async {
         do {
-            try await authService.deleteAccount()
+            try await AuthService.shared.deleteAccount()
         } catch {
             errorMessage = error.localizedDescription
         }

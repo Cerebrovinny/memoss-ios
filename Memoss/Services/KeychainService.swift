@@ -8,13 +8,13 @@
 import Foundation
 import Security
 
-final class KeychainService {
-    static let shared = KeychainService()
+nonisolated final class KeychainService: Sendable {
+    nonisolated static let shared = KeychainService()
 
     private let serviceName = "com.stack4nerds.memoss"
     private let refreshTokenKey = "refresh_token"
 
-    private init() {}
+    private nonisolated init() {}
 
     // MARK: - Refresh Token
 
