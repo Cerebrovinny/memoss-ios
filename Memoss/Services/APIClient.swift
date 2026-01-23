@@ -19,7 +19,7 @@ enum APIEnvironment {
         case .development:
             return URL(string: "http://localhost:8080")!
         case .production:
-            return URL(string: "https://api.memoss.app")!
+            return URL(string: "https://memoss-backend.fly.dev")!
         }
     }
 }
@@ -122,7 +122,7 @@ final class APIClient: ObservableObject {
 
     @Published var isAuthenticated = false
 
-    init(environment: APIEnvironment = .development, keychainService: KeychainService = .shared) {
+    init(environment: APIEnvironment = .production, keychainService: KeychainService = .shared) {
         self.environment = environment
         self.keychainService = keychainService
 
