@@ -31,6 +31,7 @@ struct ReminderCard: View {
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .strikethrough(reminder.isCompleted, color: MemossColors.textSecondary)
                     .foregroundStyle(reminder.isCompleted ? MemossColors.textSecondary : MemossColors.textPrimary)
+                    .lineLimit(2)
 
                 Label {
                     Text(reminder.scheduledDate, format: .dateTime.hour().minute())
@@ -39,6 +40,27 @@ struct ReminderCard: View {
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(MemossColors.textSecondary)
+
+                // Tags display
+                if !reminder.tags.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(reminder.tags.prefix(3), id: \.id) { tag in
+                            TagChip(tag: tag, isCompact: true)
+                                .opacity(reminder.isCompleted ? 0.6 : 1.0)
+                        }
+
+                        if reminder.tags.count > 3 {
+                            Text("+\(reminder.tags.count - 3)")
+                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundStyle(MemossColors.textSecondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(MemossColors.backgroundStart)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .padding(.top, 4)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture {

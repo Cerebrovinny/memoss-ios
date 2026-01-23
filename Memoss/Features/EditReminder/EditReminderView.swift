@@ -19,12 +19,14 @@ struct EditReminderView: View {
     @State private var scheduledDate: Date
     @State private var hasAttemptedSave = false
     @State private var showingDeleteConfirmation = false
+    @State private var selectedTags: [Tag]
     @FocusState private var isTitleFocused: Bool
 
     init(reminder: Reminder) {
         self.reminder = reminder
         _title = State(initialValue: reminder.title)
         _scheduledDate = State(initialValue: reminder.scheduledDate)
+        _selectedTags = State(initialValue: reminder.tags)
     }
 
     private var isTitleValid: Bool {
@@ -36,7 +38,9 @@ struct EditReminderView: View {
     }
 
     private var hasUnsavedChanges: Bool {
-        title != reminder.title || scheduledDate != reminder.scheduledDate
+        title != reminder.title ||
+        scheduledDate != reminder.scheduledDate ||
+        Set(selectedTags.map(\.id)) != Set(reminder.tags.map(\.id))
     }
 
     var body: some View {
@@ -48,6 +52,8 @@ struct EditReminderView: View {
                     datePickerCard
 
                     timePickerCard
+
+                    TagPickerView(selectedTags: $selectedTags)
 
                     Spacer(minLength: 20)
 
@@ -231,6 +237,7 @@ struct EditReminderView: View {
 
         reminder.title = title.trimmingCharacters(in: .whitespaces)
         reminder.scheduledDate = scheduledDate
+        reminder.tags = selectedTags
 
         // Reschedule notification for incomplete reminders
         if !reminder.isCompleted {
@@ -261,5 +268,5 @@ struct EditReminderView: View {
     EditReminderView(
         reminder: Reminder(title: "Water the plants", scheduledDate: Date())
     )
-    .modelContainer(for: Reminder.self, inMemory: true)
+    .modelContainer(for: [Reminder.self, Tag.self], inMemory: true)
 }

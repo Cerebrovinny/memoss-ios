@@ -15,6 +15,9 @@ final class Reminder {
     var scheduledDate: Date
     var isCompleted: Bool
 
+    @Relationship(deleteRule: .nullify)
+    var tags: [Tag] = []
+
     init(title: String, scheduledDate: Date = .now, isCompleted: Bool = false) {
         self.id = UUID()
         self.title = title

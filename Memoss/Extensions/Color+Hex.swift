@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 extension Color {
     init(hex: String) {
@@ -25,5 +26,16 @@ extension Color {
             blue: Double(blue) / 255,
             opacity: Double(alpha) / 255
         )
+    }
+
+    func toHex() -> String? {
+        let uiColor = UIColor(self)
+        guard let components = uiColor.cgColor.components, components.count >= 3 else {
+            return nil
+        }
+        let r = lroundf(Float(components[0]) * 255)
+        let g = lroundf(Float(components[1]) * 255)
+        let b = lroundf(Float(components[2]) * 255)
+        return String(format: "#%02lX%02lX%02lX", r, g, b)
     }
 }
