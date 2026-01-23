@@ -220,7 +220,7 @@ enum NotificationCategory: String {
 enum NotificationAction: String {
     case markComplete = "MARK_COMPLETE_ACTION"
     case snooze = "SNOOZE_ACTION"  // Legacy
-    case snooze15 = "snooze_15"
-    case snooze60 = "snooze_60"
-    case snoozeCustom = "snooze_custom"
+    case snooze15 = "SNOOZE_15_ACTION"
+    case snooze60 = "SNOOZE_60_ACTION"
+    case snoozeCustom = "SNOOZE_CUSTOM_ACTION"
 }

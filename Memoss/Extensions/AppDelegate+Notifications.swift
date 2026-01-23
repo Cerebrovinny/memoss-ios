@@ -55,6 +55,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 if let textResponse = response as? UNTextInputNotificationResponse {
                     let minutes = parseSnoozeInput(textResponse.userText) ?? 15  // Fallback to 15 min
                     await handleSnooze(response: response, minutes: minutes)
+                } else {
+                    // Fallback if custom action is triggered without text input
+                    await handleSnooze(response: response, minutes: 15)
                 }
 
             case NotificationAction.snooze.rawValue:
