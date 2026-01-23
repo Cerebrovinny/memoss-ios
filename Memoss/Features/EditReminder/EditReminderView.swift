@@ -20,6 +20,8 @@ struct EditReminderView: View {
     @State private var hasAttemptedSave = false
     @State private var showingDeleteConfirmation = false
     @State private var selectedTags: [Tag]
+    @State private var recurrenceRule: RecurrenceRule
+    @State private var recurrenceEndDate: Date?
     @FocusState private var isTitleFocused: Bool
 
     init(reminder: Reminder) {
@@ -27,6 +29,8 @@ struct EditReminderView: View {
         _title = State(initialValue: reminder.title)
         _scheduledDate = State(initialValue: reminder.scheduledDate)
         _selectedTags = State(initialValue: reminder.tags)
+        _recurrenceRule = State(initialValue: reminder.recurrenceRule)
+        _recurrenceEndDate = State(initialValue: reminder.recurrenceEndDate)
     }
 
     private var isTitleValid: Bool {
@@ -40,7 +44,9 @@ struct EditReminderView: View {
     private var hasUnsavedChanges: Bool {
         title != reminder.title ||
         scheduledDate != reminder.scheduledDate ||
-        Set(selectedTags.map(\.id)) != Set(reminder.tags.map(\.id))
+        Set(selectedTags.map(\.id)) != Set(reminder.tags.map(\.id)) ||
+        recurrenceRule != reminder.recurrenceRule ||
+        recurrenceEndDate != reminder.recurrenceEndDate
     }
 
     var body: some View {
@@ -54,6 +60,12 @@ struct EditReminderView: View {
                     timePickerCard
 
                     TagPickerView(selectedTags: $selectedTags)
+
+                    RecurrencePickerView(
+                        recurrenceRule: $recurrenceRule,
+                        endDate: $recurrenceEndDate,
+                        scheduledDate: scheduledDate
+                    )
 
                     Spacer(minLength: 20)
 
@@ -92,12 +104,6 @@ struct EditReminderView: View {
                     .foregroundStyle(isTitleValid ? MemossColors.brandPrimary : MemossColors.textSecondary)
                     .disabled(!isTitleValid)
                     .accessibilityLabel(isTitleValid ? "Save changes" : "Save button disabled, enter a title first")
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        isTitleFocused = false
-                    }
                 }
             }
             .confirmationDialog(
@@ -238,12 +244,14 @@ struct EditReminderView: View {
         reminder.title = title.trimmingCharacters(in: .whitespaces)
         reminder.scheduledDate = scheduledDate
         reminder.tags = selectedTags
+        reminder.recurrenceRule = recurrenceRule
+        reminder.recurrenceEndDate = recurrenceEndDate
 
-        // Reschedule notification for incomplete reminders
+        // Reschedule notifications for incomplete reminders
         if !reminder.isCompleted {
-            NotificationService.shared.cancelNotification(for: reminder)
+            NotificationService.shared.cancelAllNotifications(for: reminder)
             Task {
-                await NotificationService.shared.scheduleNotification(for: reminder)
+                await NotificationService.shared.scheduleNotifications(for: reminder)
             }
         }
 
@@ -252,8 +260,8 @@ struct EditReminderView: View {
     }
 
     private func deleteReminder() {
-        // Cancel notifications before deleting to prevent orphan notifications
-        NotificationService.shared.cancelNotification(for: reminder)
+        // Cancel all notifications before deleting to prevent orphan notifications
+        NotificationService.shared.cancelAllNotifications(for: reminder)
         NotificationService.shared.cancelDeliveredNotification(for: reminder)
 
         // Delete from SwiftData
