@@ -109,7 +109,6 @@ nonisolated struct Endpoint: Sendable {
     }
 }
 
-// Helper for encoding any Encodable
 private nonisolated struct AnyEncodable: Encodable, @unchecked Sendable {
     private let encode: @Sendable (Encoder) throws -> Void
 
@@ -126,7 +125,6 @@ private nonisolated struct AnyEncodable: Encodable, @unchecked Sendable {
 
 // MARK: - API Client
 
-/// API Client with network operations running OFF the main thread
 final class APIClient: ObservableObject, @unchecked Sendable {
     nonisolated static let shared = APIClient()
 
@@ -144,14 +142,13 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         self.keychainService = keychainService
     }
 
-    /// Call this on app launch to restore auth state (async to avoid blocking main thread)
     @MainActor
     func restoreAuthState() async {
         let hasToken = await keychainService.getRefreshTokenAsync() != nil
         self.isAuthenticated = hasToken
     }
 
-    // MARK: - Token Management (Main Actor for UI state)
+    // MARK: - Token Management
 
     @MainActor
     func setTokens(access: String, refresh: String) async {
@@ -186,9 +183,8 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // MARK: - Request (runs on background thread)
+    // MARK: - Requests
 
-    /// Perform a network request - runs on a background thread, never blocks main
     nonisolated func request<T: Decodable & Sendable>(_ endpoint: Endpoint) async throws -> T {
         let urlRequest = makeRequest(endpoint)
         var mutableRequest = urlRequest
@@ -245,7 +241,7 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         var request = URLRequest(url: url)
         request.httpMethod = endpoint.method.rawValue
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 10 // 10 second timeout
+        request.timeoutInterval = 10
 
         if let body = endpoint.body {
             request.httpBody = body
@@ -300,7 +296,6 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        // Use sync keychain access since we're already on a background thread
         guard let refreshToken = keychainService.getRefreshTokenSync() else {
             await clearTokensAsync()
             throw APIError.unauthorized
@@ -320,7 +315,6 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        // Use sync keychain access since we're already on a background thread
         guard let refreshToken = keychainService.getRefreshTokenSync() else {
             await clearTokensAsync()
             throw APIError.unauthorized
@@ -336,7 +330,6 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // Async wrappers for MainActor token management
     @MainActor
     private func setTokensAsync(access: String, refresh: String) async {
         lock.withLock { self._accessToken = access }
@@ -367,7 +360,6 @@ final class APIClient: ObservableObject, @unchecked Sendable {
             requiresAuth: false
         )
 
-        // Direct network call without going through request() to avoid recursion issues
         let urlRequest = makeRequest(endpoint)
         let (data, response) = try await performRequest(urlRequest)
         let httpResponse = response as? HTTPURLResponse

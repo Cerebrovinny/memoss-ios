@@ -91,7 +91,6 @@ final class AuthService: NSObject, ObservableObject {
     // MARK: - Sign Out
 
     func signOut() async {
-        // Get refresh token in background before making API call
         let refreshToken = await KeychainService.shared.getRefreshTokenAsync() ?? ""
 
         do {
@@ -102,7 +101,6 @@ final class AuthService: NSObject, ObservableObject {
                 requiresAuth: true
             ))
         } catch {
-            // Continue with local sign out even if server fails
         }
 
         await apiClient.clearTokens()
@@ -188,11 +186,9 @@ private class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = scene.windows.first else {
-            // Create a window with the first available window scene
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
                 return UIWindow(windowScene: windowScene)
             }
-            // This fallback should never be reached in normal conditions
             fatalError("No window scene available for Apple Sign In presentation")
         }
         return window

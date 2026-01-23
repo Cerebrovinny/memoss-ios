@@ -118,7 +118,6 @@ nonisolated struct UpdateTagInput: Encodable, Sendable {
 
 // MARK: - Sync Service
 
-/// Sync service - network calls run on background thread, UI updates on main
 final class SyncService: ObservableObject, @unchecked Sendable {
     static let shared = SyncService()
 
@@ -175,7 +174,6 @@ final class SyncService: ObservableObject, @unchecked Sendable {
     private func syncTags(modelContext: ModelContext) async throws {
         let remoteTags: [RemoteTag] = try await apiClient.request(Endpoint(path: "/v1/tags"))
 
-        // SwiftData operations must happen on MainActor
         try await MainActor.run {
             let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
 
@@ -204,7 +202,6 @@ final class SyncService: ObservableObject, @unchecked Sendable {
             try modelContext.save()
         }
 
-        // Push local-only tags (network calls outside MainActor)
         let localOnlyTags = try await MainActor.run {
             let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
             return localTags.filter { $0.remoteID == nil }.map { (id: $0.id, name: $0.name, colorHex: $0.colorHex) }
@@ -279,7 +276,6 @@ final class SyncService: ObservableObject, @unchecked Sendable {
             try modelContext.save()
         }
 
-        // Push local-only reminders
         let localOnlyReminders = try await MainActor.run {
             let localReminders = try modelContext.fetch(FetchDescriptor<Reminder>())
             return localReminders.filter { $0.remoteID == nil }.map { reminder in
@@ -329,7 +325,6 @@ final class SyncService: ObservableObject, @unchecked Sendable {
         let enabled = await MainActor.run { isSyncEnabled }
         guard enabled else { return }
 
-        // Extract data on MainActor first
         let reminderData = await MainActor.run {
             (
                 remoteID: reminder.remoteID,

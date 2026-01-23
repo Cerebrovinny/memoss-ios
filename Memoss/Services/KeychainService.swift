@@ -8,8 +8,6 @@
 import Foundation
 import Security
 
-/// Keychain service with async operations to avoid blocking main thread.
-/// Keychain access can be slow on real devices due to Secure Enclave.
 nonisolated final class KeychainService: Sendable {
     nonisolated static let shared = KeychainService()
 
@@ -18,9 +16,8 @@ nonisolated final class KeychainService: Sendable {
 
     private nonisolated init() {}
 
-    // MARK: - Refresh Token (Async - use these from main thread)
+    // MARK: - Async Operations
 
-    /// Async version - safe to call from MainActor
     func getRefreshTokenAsync() async -> String? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -30,7 +27,6 @@ nonisolated final class KeychainService: Sendable {
         }
     }
 
-    /// Async version - safe to call from MainActor
     func setRefreshTokenAsync(_ token: String) async {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -40,7 +36,6 @@ nonisolated final class KeychainService: Sendable {
         }
     }
 
-    /// Async version - safe to call from MainActor
     func deleteRefreshTokenAsync() async {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -50,24 +45,21 @@ nonisolated final class KeychainService: Sendable {
         }
     }
 
-    // MARK: - Refresh Token (Sync - only call from background threads)
+    // MARK: - Sync Operations
 
-    /// Synchronous version - only call from background threads
     func getRefreshTokenSync() -> String? {
         return getString(forKey: refreshTokenKey)
     }
 
-    /// Synchronous version - only call from background threads
     func setRefreshTokenSync(_ token: String) {
         setString(token, forKey: refreshTokenKey)
     }
 
-    /// Synchronous version - only call from background threads
     func deleteRefreshTokenSync() {
         deleteValue(forKey: refreshTokenKey)
     }
 
-    // MARK: - Generic Keychain Operations
+    // MARK: - Private
 
     private func getString(forKey key: String) -> String? {
         let query: [String: Any] = [
