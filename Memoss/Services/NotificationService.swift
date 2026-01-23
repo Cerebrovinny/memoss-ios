@@ -61,7 +61,7 @@ final class NotificationService {
     /// Cancel all pending notifications for a reminder (both recurring and single)
     func cancelAllNotifications(for reminder: Reminder) {
         // Cancel indexed notifications (recurring)
-        let recurringIdentifiers = (0..<64).map { "\(reminder.id.uuidString)-\($0)" }
+        let recurringIdentifiers = (0..<maxRecurringNotifications).map { "\(reminder.id.uuidString)-\($0)" }
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: recurringIdentifiers)
 
         // Cancel single notification ID (non-recurring)
@@ -79,7 +79,7 @@ final class NotificationService {
     func cancelDeliveredNotification(for reminder: Reminder) {
         // Cancel both single and indexed delivered notifications
         var identifiers = [reminder.id.uuidString]
-        identifiers.append(contentsOf: (0..<64).map { "\(reminder.id.uuidString)-\($0)" })
+        identifiers.append(contentsOf: (0..<maxRecurringNotifications).map { "\(reminder.id.uuidString)-\($0)" })
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 

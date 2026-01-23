@@ -65,9 +65,14 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
 
         case .weekly(let weekday):
             // Find next occurrence of this weekday
-            var nextDate = calendar.date(byAdding: .day, value: 1, to: date)!
+            guard var nextDate = calendar.date(byAdding: .day, value: 1, to: date) else {
+                return nil
+            }
             while calendar.component(.weekday, from: nextDate) != weekday {
-                nextDate = calendar.date(byAdding: .day, value: 1, to: nextDate)!
+                guard let advancedDate = calendar.date(byAdding: .day, value: 1, to: nextDate) else {
+                    return nil
+                }
+                nextDate = advancedDate
             }
             // Preserve the time from original date
             let timeComponents = calendar.dateComponents([.hour, .minute], from: date)
@@ -87,6 +92,7 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
 
         case .monthly(let day):
             var components = calendar.dateComponents([.year, .month, .hour, .minute], from: date)
+            let currentYear = calendar.component(.year, from: Date())
 
             // Helper to get days in a specific year/month
             func daysInMonth(year: Int, month: Int) -> Int {
@@ -96,7 +102,7 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
             }
 
             // Try same month first - use TARGET month's day count
-            let sameMonthDays = daysInMonth(year: components.year ?? 2026, month: components.month ?? 1)
+            let sameMonthDays = daysInMonth(year: components.year ?? currentYear, month: components.month ?? 1)
             components.day = min(day, sameMonthDays)
 
             if let sameMonth = calendar.date(from: components), sameMonth > date {
@@ -104,13 +110,20 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
             }
 
             // Move to next month
-            components.month = (components.month ?? 1) + 1
-            if components.month! > 12 {
-                components.month = 1
-                components.year = (components.year ?? 2026) + 1
+            guard var month = components.month, var year = components.year else {
+                return nil
             }
+
+            month += 1
+            if month > 12 {
+                month = 1
+                year += 1
+            }
+            components.month = month
+            components.year = year
+
             // Use NEXT month's day count, not current month
-            let nextMonthDays = daysInMonth(year: components.year!, month: components.month!)
+            let nextMonthDays = daysInMonth(year: year, month: month)
             components.day = min(day, nextMonthDays)
             return calendar.date(from: components)
         }

@@ -30,7 +30,14 @@ struct RecurrencePickerView: View {
     private var weekdayName: String {
         let formatter = DateFormatter()
         formatter.locale = Locale.current
-        return formatter.weekdaySymbols[weekday - 1]
+        guard let symbols = formatter.weekdaySymbols else {
+            return "Sunday"
+        }
+        let index = weekday - 1
+        guard index >= 0, index < symbols.count else {
+            return symbols.first ?? "Sunday"
+        }
+        return symbols[index]
     }
 
     var body: some View {
