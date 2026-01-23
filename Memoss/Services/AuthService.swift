@@ -48,7 +48,7 @@ final class AuthService: NSObject, ObservableObject {
         }
 
         let tokens = try await sendAppleToken(identityToken)
-        apiClient.setTokens(access: tokens.accessToken, refresh: tokens.refreshToken)
+        await apiClient.setTokens(access: tokens.accessToken, refresh: tokens.refreshToken)
 
         self.userEmail = credential.email
         self.authProvider = .apple
@@ -91,18 +91,21 @@ final class AuthService: NSObject, ObservableObject {
     // MARK: - Sign Out
 
     func signOut() async {
+        // Get refresh token in background before making API call
+        let refreshToken = await KeychainService.shared.getRefreshTokenAsync() ?? ""
+
         do {
             try await apiClient.requestVoid(Endpoint(
                 path: "/v1/auth/logout",
                 method: .POST,
-                body: LogoutRequest(refreshToken: KeychainService.shared.getRefreshToken() ?? ""),
+                body: LogoutRequest(refreshToken: refreshToken),
                 requiresAuth: true
             ))
         } catch {
             // Continue with local sign out even if server fails
         }
 
-        apiClient.clearTokens()
+        await apiClient.clearTokens()
         self.isAuthenticated = false
         self.userEmail = nil
         self.authProvider = nil
@@ -120,7 +123,7 @@ final class AuthService: NSObject, ObservableObject {
             requiresAuth: true
         ))
 
-        apiClient.clearTokens()
+        await apiClient.clearTokens()
         self.isAuthenticated = false
         self.userEmail = nil
         self.authProvider = nil

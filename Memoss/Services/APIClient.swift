@@ -144,31 +144,26 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         self.keychainService = keychainService
     }
 
-    /// Call this on app launch to restore auth state
+    /// Call this on app launch to restore auth state (async to avoid blocking main thread)
     @MainActor
-    func restoreAuthState() {
-        if keychainService.getRefreshToken() != nil {
-            self.isAuthenticated = true
-        }
+    func restoreAuthState() async {
+        let hasToken = await keychainService.getRefreshTokenAsync() != nil
+        self.isAuthenticated = hasToken
     }
 
     // MARK: - Token Management (Main Actor for UI state)
 
     @MainActor
-    func setTokens(access: String, refresh: String) {
-        lock.lock()
-        self._accessToken = access
-        lock.unlock()
-        keychainService.setRefreshToken(refresh)
+    func setTokens(access: String, refresh: String) async {
+        lock.withLock { self._accessToken = access }
+        await keychainService.setRefreshTokenAsync(refresh)
         isAuthenticated = true
     }
 
     @MainActor
-    func clearTokens() {
-        lock.lock()
-        self._accessToken = nil
-        lock.unlock()
-        keychainService.deleteRefreshToken()
+    func clearTokens() async {
+        lock.withLock { self._accessToken = nil }
+        await keychainService.deleteRefreshTokenAsync()
         isAuthenticated = false
     }
 
@@ -305,7 +300,8 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        guard let refreshToken = keychainService.getRefreshToken() else {
+        // Use sync keychain access since we're already on a background thread
+        guard let refreshToken = keychainService.getRefreshTokenSync() else {
             await clearTokensAsync()
             throw APIError.unauthorized
         }
@@ -324,7 +320,8 @@ final class APIClient: ObservableObject, @unchecked Sendable {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        guard let refreshToken = keychainService.getRefreshToken() else {
+        // Use sync keychain access since we're already on a background thread
+        guard let refreshToken = keychainService.getRefreshTokenSync() else {
             await clearTokensAsync()
             throw APIError.unauthorized
         }
@@ -341,20 +338,16 @@ final class APIClient: ObservableObject, @unchecked Sendable {
 
     // Async wrappers for MainActor token management
     @MainActor
-    private func setTokensAsync(access: String, refresh: String) {
-        lock.lock()
-        self._accessToken = access
-        lock.unlock()
-        keychainService.setRefreshToken(refresh)
+    private func setTokensAsync(access: String, refresh: String) async {
+        lock.withLock { self._accessToken = access }
+        await keychainService.setRefreshTokenAsync(refresh)
         isAuthenticated = true
     }
 
     @MainActor
-    private func clearTokensAsync() {
-        lock.lock()
-        self._accessToken = nil
-        lock.unlock()
-        keychainService.deleteRefreshToken()
+    private func clearTokensAsync() async {
+        lock.withLock { self._accessToken = nil }
+        await keychainService.deleteRefreshTokenAsync()
         isAuthenticated = false
     }
 

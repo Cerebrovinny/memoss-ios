@@ -8,6 +8,8 @@
 import Foundation
 import Security
 
+/// Keychain service with async operations to avoid blocking main thread.
+/// Keychain access can be slow on real devices due to Secure Enclave.
 nonisolated final class KeychainService: Sendable {
     nonisolated static let shared = KeychainService()
 
@@ -16,17 +18,52 @@ nonisolated final class KeychainService: Sendable {
 
     private nonisolated init() {}
 
-    // MARK: - Refresh Token
+    // MARK: - Refresh Token (Async - use these from main thread)
 
-    func getRefreshToken() -> String? {
+    /// Async version - safe to call from MainActor
+    func getRefreshTokenAsync() async -> String? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = self.getRefreshTokenSync()
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    /// Async version - safe to call from MainActor
+    func setRefreshTokenAsync(_ token: String) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.setRefreshTokenSync(token)
+                continuation.resume()
+            }
+        }
+    }
+
+    /// Async version - safe to call from MainActor
+    func deleteRefreshTokenAsync() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.deleteRefreshTokenSync()
+                continuation.resume()
+            }
+        }
+    }
+
+    // MARK: - Refresh Token (Sync - only call from background threads)
+
+    /// Synchronous version - only call from background threads
+    func getRefreshTokenSync() -> String? {
         return getString(forKey: refreshTokenKey)
     }
 
-    func setRefreshToken(_ token: String) {
+    /// Synchronous version - only call from background threads
+    func setRefreshTokenSync(_ token: String) {
         setString(token, forKey: refreshTokenKey)
     }
 
-    func deleteRefreshToken() {
+    /// Synchronous version - only call from background threads
+    func deleteRefreshTokenSync() {
         deleteValue(forKey: refreshTokenKey)
     }
 

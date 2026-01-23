@@ -208,8 +208,8 @@ struct CreateReminderView: View {
             await NotificationService.shared.scheduleNotifications(for: reminder)
         }
 
-        // Sync to remote in background (fire and forget - don't block UI)
-        Task {
+        // Sync to remote in background (detached to not block UI)
+        Task.detached(priority: .utility) { [reminder, modelContext] in
             try? await SyncService.shared.pushReminder(reminder, modelContext: modelContext)
         }
 

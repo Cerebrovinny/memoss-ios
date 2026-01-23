@@ -13,6 +13,10 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    // Observe services via @ObservedObject to avoid direct singleton access in body
+    @ObservedObject private var authService = AuthService.shared
+    @ObservedObject private var syncService = SyncService.shared
+
     @State private var showSignOutAlert = false
     @State private var showDeleteAccountAlert = false
     @State private var isLoading = false
@@ -70,7 +74,7 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader("Sync")
 
-            if AuthService.shared.isAuthenticated {
+            if authService.isAuthenticated {
                 signedInCard
             } else {
                 signInCard
@@ -89,13 +93,13 @@ struct SettingsView: View {
                     Text("Signed In")
                         .font(.headline.weight(.semibold))
 
-                    if let email = AuthService.shared.userEmail {
+                    if let email = authService.userEmail {
                         Text(email)
                             .font(.subheadline)
                             .foregroundStyle(MemossColors.textSecondary)
                     }
 
-                    if let provider = AuthService.shared.authProvider {
+                    if let provider = authService.authProvider {
                         Text("via \(provider.rawValue.capitalized)")
                             .font(.caption)
                             .foregroundStyle(MemossColors.textSecondary)
@@ -104,7 +108,7 @@ struct SettingsView: View {
 
                 Spacer()
 
-                if SyncService.shared.isSyncing {
+                if syncService.isSyncing {
                     ProgressView()
                         .tint(MemossColors.brandPrimary)
                 }
@@ -112,7 +116,7 @@ struct SettingsView: View {
 
             Divider()
 
-            if let lastSync = SyncService.shared.lastSyncDate {
+            if let lastSync = syncService.lastSyncDate {
                 HStack {
                     Text("Last synced")
                         .font(.subheadline)
@@ -138,7 +142,7 @@ struct SettingsView: View {
                 .background(MemossColors.brandPrimary.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(SyncService.shared.isSyncing)
+            .disabled(syncService.isSyncing)
 
             Divider()
 
@@ -261,8 +265,11 @@ struct SettingsView: View {
         errorMessage = nil
 
         do {
-            try await AuthService.shared.signInWithApple()
-            await sync()
+            try await authService.signInWithApple()
+            // Run sync detached to not block UI
+            Task.detached(priority: .utility) { [modelContext] in
+                await SyncService.shared.syncAll(modelContext: modelContext)
+            }
         } catch AuthError.cancelled {
             // User cancelled, no error
         } catch {
@@ -273,16 +280,19 @@ struct SettingsView: View {
     }
 
     private func sync() async {
-        await SyncService.shared.syncAll(modelContext: modelContext)
+        // Run sync detached to not block UI
+        Task.detached(priority: .utility) { [modelContext] in
+            await SyncService.shared.syncAll(modelContext: modelContext)
+        }
     }
 
     private func signOut() async {
-        await AuthService.shared.signOut()
+        await authService.signOut()
     }
 
     private func deleteAccount() async {
         do {
-            try await AuthService.shared.deleteAccount()
+            try await authService.deleteAccount()
         } catch {
             errorMessage = error.localizedDescription
         }

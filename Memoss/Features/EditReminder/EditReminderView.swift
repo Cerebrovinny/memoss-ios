@@ -256,8 +256,8 @@ struct EditReminderView: View {
             }
         }
 
-        // Sync to remote if authenticated
-        Task {
+        // Sync to remote if authenticated (detached to not block UI)
+        Task.detached(priority: .utility) { [reminder, modelContext] in
             try? await SyncService.shared.pushReminder(reminder, modelContext: modelContext)
         }
 
@@ -270,9 +270,9 @@ struct EditReminderView: View {
         NotificationService.shared.cancelAllNotifications(for: reminder)
         NotificationService.shared.cancelDeliveredNotification(for: reminder)
 
-        // Delete from remote if synced
+        // Delete from remote if synced (detached to not block UI)
         if let remoteID = reminder.remoteID {
-            Task {
+            Task.detached(priority: .utility) {
                 try? await SyncService.shared.deleteReminder(remoteID)
             }
         }

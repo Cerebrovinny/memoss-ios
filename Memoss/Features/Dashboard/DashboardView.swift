@@ -113,8 +113,13 @@ struct DashboardView: View {
             SettingsView()
         }
         .task {
-            // Sync on app launch if authenticated (fire and forget)
-            await SyncService.shared.syncAll(modelContext: modelContext)
+            // Restore auth state first (async to not block main thread)
+            await APIClient.shared.restoreAuthState()
+
+            // Sync on app launch if authenticated (detached to avoid blocking UI)
+            Task.detached(priority: .utility) { [modelContext] in
+                await SyncService.shared.syncAll(modelContext: modelContext)
+            }
         }
     }
 
