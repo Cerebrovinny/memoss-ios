@@ -10,6 +10,7 @@ import Foundation
 enum RecurrenceRule: Codable, Equatable, Hashable {
     case none
     case daily
+    case hourly
     case weekly(weekday: Int)  // 1=Sunday, 2=Monday, etc.
     case monthly(day: Int)     // 1-31
 
@@ -21,6 +22,8 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
             return "Never"
         case .daily:
             return "Daily"
+        case .hourly:
+            return "Hourly"
         case .weekly(let weekday):
             let formatter = DateFormatter()
             formatter.locale = Locale.current
@@ -36,6 +39,7 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
         switch self {
         case .none: return "Once"
         case .daily: return "Daily"
+        case .hourly: return "Hourly"
         case .weekly: return "Weekly"
         case .monthly: return "Monthly"
         }
@@ -45,6 +49,7 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
         switch self {
         case .none: return "arrow.forward"
         case .daily: return "sunrise.fill"
+        case .hourly: return "clock.fill"
         case .weekly: return "calendar.badge.clock"
         case .monthly: return "calendar"
         }
@@ -62,6 +67,9 @@ enum RecurrenceRule: Codable, Equatable, Hashable {
 
         case .daily:
             return calendar.date(byAdding: .day, value: 1, to: date)
+
+        case .hourly:
+            return calendar.date(byAdding: .hour, value: 1, to: date)
 
         case .weekly(let weekday):
             // Find next occurrence of this weekday

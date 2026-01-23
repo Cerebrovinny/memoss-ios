@@ -53,6 +53,8 @@ struct RecurrencePickerView: View {
                 Divider().padding(.leading, 52)
                 recurrenceOption(.daily, label: "Daily", icon: "sunrise.fill")
                 Divider().padding(.leading, 52)
+                recurrenceOption(.hourly, label: "Hourly", icon: "clock.fill")
+                Divider().padding(.leading, 52)
                 recurrenceOption(.weekly(weekday: weekday), label: "Weekly on \(weekdayName)", icon: "calendar.badge.clock")
                 Divider().padding(.leading, 52)
                 recurrenceOption(.monthly(day: dayOfMonth), label: "Monthly on the \(dayOfMonth)\(daySuffix(dayOfMonth))", icon: "calendar")
@@ -221,6 +223,16 @@ struct RecurrencePickerView: View {
 #Preview("Daily Selected") {
     RecurrencePickerView(
         recurrenceRule: .constant(.daily),
+        endDate: .constant(nil),
+        scheduledDate: .now
+    )
+    .padding()
+    .background(MemossColors.backgroundStart)
+}
+
+#Preview("Hourly Selected") {
+    RecurrencePickerView(
+        recurrenceRule: .constant(.hourly),
         endDate: .constant(nil),
         scheduledDate: .now
     )
