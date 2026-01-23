@@ -43,11 +43,31 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             switch response.actionIdentifier {
             case NotificationAction.markComplete.rawValue:
                 await handleMarkComplete(reminderId: reminderId)
+
+            case NotificationAction.snooze15.rawValue:
+                await handleSnooze(response: response, minutes: 15)
+
+            case NotificationAction.snooze60.rawValue:
+                await handleSnooze(response: response, minutes: 60)
+
+            case NotificationAction.snoozeCustom.rawValue:
+                // Handle text input for custom duration
+                if let textResponse = response as? UNTextInputNotificationResponse {
+                    let minutes = parseSnoozeInput(textResponse.userText) ?? 15  // Fallback to 15 min
+                    await handleSnooze(response: response, minutes: minutes)
+                } else {
+                    // Fallback if custom action is triggered without text input
+                    await handleSnooze(response: response, minutes: 15)
+                }
+
             case NotificationAction.snooze.rawValue:
-                await handleSnooze(response: response)
+                // Legacy support for old snooze action
+                await handleSnooze(response: response, minutes: 15)
+
             case UNNotificationDefaultActionIdentifier:
                 // User tapped notification body - app opens to dashboard
                 break
+
             default:
                 break
             }
@@ -102,10 +122,21 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     }
 
     @MainActor
-    private func handleSnooze(response: UNNotificationResponse) async {
+    private func handleSnooze(response: UNNotificationResponse, minutes: Int) async {
         await NotificationService.shared.snoozeNotification(
             from: response,
-            duration: 15 * 60  // 15 minutes
+            duration: TimeInterval(minutes * 60)
         )
+    }
+
+    /// Simple integer parsing for snooze duration.
+    /// Placeholder "Minutes (e.g., 22)" guides users to type numbers.
+    /// Returns nil for invalid input (caller handles fallback).
+    private func parseSnoozeInput(_ input: String) -> Int? {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let minutes = Int(trimmed), minutes > 0, minutes <= 180 else {
+            return nil
+        }
+        return minutes
     }
 }
