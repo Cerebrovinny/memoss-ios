@@ -99,18 +99,46 @@ struct DashboardView: View {
     }
 
     private func toggleCompletion(_ reminder: Reminder) {
+        if reminder.isRecurring && !reminder.isCompleted {
+            // Recurring reminder: advance to next occurrence
+            handleRecurringCompletion(reminder)
+        } else {
+            // Non-recurring or uncompleting: standard toggle
+            handleStandardToggle(reminder)
+        }
+    }
+
+    private func handleRecurringCompletion(_ reminder: Reminder) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            reminder.advanceToNextOccurrence()
+        }
+
+        // Reschedule notifications for remaining occurrences
+        NotificationService.shared.cancelAllNotifications(for: reminder)
+        if !reminder.isCompleted {
+            Task {
+                await NotificationService.shared.scheduleNotifications(for: reminder)
+            }
+        }
+
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func handleStandardToggle(_ reminder: Reminder) {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             reminder.isCompleted.toggle()
         }
 
         if reminder.isCompleted {
-            NotificationService.shared.cancelNotification(for: reminder)
+            NotificationService.shared.cancelAllNotifications(for: reminder)
             NotificationService.shared.cancelDeliveredNotification(for: reminder)
         } else {
             Task {
-                await NotificationService.shared.scheduleNotification(for: reminder)
+                await NotificationService.shared.scheduleNotifications(for: reminder)
             }
         }
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
 

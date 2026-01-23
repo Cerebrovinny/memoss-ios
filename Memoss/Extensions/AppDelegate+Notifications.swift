@@ -59,7 +59,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     private func handleMarkComplete(reminderId: String) async {
-        guard let uuid = UUID(uuidString: reminderId) else { return }
+        // Extract base UUID (remove index suffix if present for recurring notifications)
+        let baseId = extractBaseId(from: reminderId)
+
+        guard let uuid = UUID(uuidString: baseId) else { return }
 
         let context = MemossApp.sharedModelContainer.mainContext
         let descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == uuid })
@@ -67,10 +70,35 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return
         }
 
-        reminder.isCompleted = true
+        if reminder.isRecurring {
+            // Advance to next occurrence instead of marking complete
+            reminder.advanceToNextOccurrence()
+
+            // Reschedule if not completed (series not ended)
+            if !reminder.isCompleted {
+                NotificationService.shared.cancelAllNotifications(for: reminder)
+                await NotificationService.shared.scheduleNotifications(for: reminder)
+            }
+        } else {
+            reminder.isCompleted = true
+        }
 
         // Remove from notification center
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [reminderId])
+    }
+
+    /// Extract base UUID from notification identifier (handles indexed recurring format)
+    private func extractBaseId(from identifier: String) -> String {
+        // Recurring notifications have format: uuid-index (e.g., "550e8400-e29b-41d4-a716-446655440000-5")
+        // UUID format: 8-4-4-4-12 characters with hyphens
+        let components = identifier.split(separator: "-")
+
+        // Standard UUID has 5 components, recurring adds an index as 6th
+        if components.count == 6, let _ = Int(components[5]) {
+            return components.prefix(5).joined(separator: "-")
+        }
+
+        return identifier
     }
 
     @MainActor

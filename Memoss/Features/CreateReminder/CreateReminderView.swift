@@ -17,6 +17,8 @@ struct CreateReminderView: View {
     @State private var scheduledDate = Date()
     @State private var hasAttemptedSave = false
     @State private var selectedTags: [Tag] = []
+    @State private var recurrenceRule: RecurrenceRule = .none
+    @State private var recurrenceEndDate: Date?
     @FocusState private var isTitleFocused: Bool
 
     private var isTitleValid: Bool {
@@ -42,6 +44,12 @@ struct CreateReminderView: View {
                     timePickerCard
 
                     TagPickerView(selectedTags: $selectedTags)
+
+                    RecurrencePickerView(
+                        recurrenceRule: $recurrenceRule,
+                        endDate: $recurrenceEndDate,
+                        scheduledDate: scheduledDate
+                    )
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
@@ -76,12 +84,6 @@ struct CreateReminderView: View {
                     .foregroundStyle(isTitleValid ? MemossColors.brandPrimary : MemossColors.textSecondary)
                     .disabled(!isTitleValid)
                     .accessibilityLabel(isTitleValid ? "Save reminder" : "Save button disabled, enter a title first")
-                }
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        isTitleFocused = false
-                    }
                 }
             }
             .interactiveDismissDisabled(isTitleValid)
@@ -196,11 +198,13 @@ struct CreateReminderView: View {
             scheduledDate: scheduledDate
         )
         reminder.tags = selectedTags
+        reminder.recurrenceRule = recurrenceRule
+        reminder.recurrenceEndDate = recurrenceEndDate
 
         modelContext.insert(reminder)
 
         Task { @MainActor in
-            await NotificationService.shared.scheduleNotification(for: reminder)
+            await NotificationService.shared.scheduleNotifications(for: reminder)
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             dismiss()
         }

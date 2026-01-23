@@ -33,13 +33,33 @@ struct ReminderCard: View {
                     .foregroundStyle(reminder.isCompleted ? MemossColors.textSecondary : MemossColors.textPrimary)
                     .lineLimit(2)
 
-                Label {
-                    Text(reminder.scheduledDate, format: .dateTime.hour().minute())
-                } icon: {
-                    Image(systemName: "clock")
+                HStack(spacing: 8) {
+                    Label {
+                        Text(reminder.scheduledDate, format: .dateTime.hour().minute())
+                    } icon: {
+                        Image(systemName: "clock")
+                    }
+                    .font(.system(size: 14))
+                    .foregroundStyle(MemossColors.textSecondary)
+
+                    // Recurrence indicator
+                    if reminder.isRecurring {
+                        Label {
+                            Text(reminder.recurrenceRule.shortDisplayName)
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                        } icon: {
+                            Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundStyle(MemossColors.brandPrimary.opacity(reminder.isCompleted ? 0.5 : 1))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(MemossColors.brandPrimary.opacity(0.1))
+                        )
+                    }
                 }
-                .font(.system(size: 14))
-                .foregroundStyle(MemossColors.textSecondary)
 
                 // Tags display
                 if !reminder.tags.isEmpty {
@@ -76,7 +96,9 @@ struct ReminderCard: View {
         .shadow(color: MemossColors.brandPrimary.opacity(0.08), radius: 12, y: 4)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(reminder.title), scheduled for \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))"
+            reminder.isRecurring
+                ? "\(reminder.title), \(reminder.recurrenceRule.displayName), \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))"
+                : "\(reminder.title), scheduled for \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))"
         )
         .accessibilityHint(reminder.isCompleted ? "Double tap to mark as incomplete" : "Double tap to mark as complete")
         .accessibilityAddTraits(reminder.isCompleted ? [.isButton, .isSelected] : .isButton)
