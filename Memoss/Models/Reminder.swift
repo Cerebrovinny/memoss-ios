@@ -12,12 +12,18 @@ import Foundation
 final class Reminder {
     @Attribute(.unique) var id: UUID
     var title: String
+    var notes: String?
     var scheduledDate: Date
     var isCompleted: Bool
 
     // Recurrence - stored as Codable Data for SwiftData compatibility
     var recurrenceRuleData: Data?
     var recurrenceEndDate: Date?
+
+    // Sync support
+    var remoteID: String?
+    var createdAt: Date?
+    var updatedAt: Date?
 
     @Relationship(deleteRule: .nullify)
     var tags: [Tag] = []
@@ -47,6 +53,8 @@ final class Reminder {
         self.title = title
         self.scheduledDate = scheduledDate
         self.isCompleted = isCompleted
+        self.createdAt = Date()
+        self.updatedAt = Date()
     }
 
     // MARK: - Recurrence Helpers

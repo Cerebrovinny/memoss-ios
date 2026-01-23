@@ -14,6 +14,8 @@ struct DashboardView: View {
     @AppStorage("userName") private var userName = ""
     @State private var showingCreateReminder = false
     @State private var selectedReminder: Reminder?
+    @State private var showingSettings = false
+    @StateObject private var syncService = SyncService.shared
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
@@ -48,10 +50,22 @@ struct DashboardView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
-                    GreetingHeader(
-                        greeting: greeting,
-                        userName: displayName
-                    )
+                    HStack {
+                        GreetingHeader(
+                            greeting: greeting,
+                            userName: displayName
+                        )
+                        Spacer()
+                        Button {
+                            showingSettings = true
+                        } label: {
+                            Image(systemName: "gearshape.fill")
+                                .font(.title3)
+                                .foregroundStyle(MemossColors.textSecondary)
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("Settings")
+                    }
 
                     if reminders.isEmpty {
                         EmptyStateView()
@@ -95,6 +109,13 @@ struct DashboardView: View {
         }
         .sheet(item: $selectedReminder) { reminder in
             EditReminderView(reminder: reminder)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
+        .task {
+            // Sync on app launch if authenticated
+            await syncService.syncAll(modelContext: modelContext)
         }
     }
 

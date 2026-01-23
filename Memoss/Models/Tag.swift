@@ -15,6 +15,10 @@ final class Tag {
     var name: String
     var colorHex: String
     var createdAt: Date
+    var updatedAt: Date?
+
+    // Sync support
+    var remoteID: String?
 
     @Relationship(inverse: \Reminder.tags)
     var reminders: [Reminder] = []
@@ -28,5 +32,6 @@ final class Tag {
         self.name = name
         self.colorHex = colorHex
         self.createdAt = Date()
+        self.updatedAt = Date()
     }
 }

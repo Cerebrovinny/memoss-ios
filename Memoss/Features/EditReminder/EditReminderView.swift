@@ -246,6 +246,7 @@ struct EditReminderView: View {
         reminder.tags = selectedTags
         reminder.recurrenceRule = recurrenceRule
         reminder.recurrenceEndDate = recurrenceEndDate
+        reminder.updatedAt = Date()
 
         // Reschedule notifications for incomplete reminders
         if !reminder.isCompleted {
@@ -253,6 +254,11 @@ struct EditReminderView: View {
             Task {
                 await NotificationService.shared.scheduleNotifications(for: reminder)
             }
+        }
+
+        // Sync to remote if authenticated
+        Task {
+            try? await SyncService.shared.pushReminder(reminder, modelContext: modelContext)
         }
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -263,6 +269,13 @@ struct EditReminderView: View {
         // Cancel all notifications before deleting to prevent orphan notifications
         NotificationService.shared.cancelAllNotifications(for: reminder)
         NotificationService.shared.cancelDeliveredNotification(for: reminder)
+
+        // Delete from remote if synced
+        if let remoteID = reminder.remoteID {
+            Task {
+                try? await SyncService.shared.deleteReminder(remoteID)
+            }
+        }
 
         // Delete from SwiftData
         modelContext.delete(reminder)
