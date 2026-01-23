@@ -54,5 +54,7 @@ struct MemossApp: App {
         for tag in defaults {
             context.insert(Tag(name: tag.name, colorHex: tag.hex))
         }
+
+        try? context.save()
     }
 }

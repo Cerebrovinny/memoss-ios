@@ -28,6 +28,15 @@ struct TagPickerView: View {
         reduceMotion ? .none : .spring(response: 0.3, dampingFraction: 0.8)
     }
 
+    private var tagNameExists: Bool {
+        let trimmedName = newTagName.trimmingCharacters(in: .whitespaces).lowercased()
+        return allTags.contains { $0.name.lowercased() == trimmedName }
+    }
+
+    private var canCreateTag: Bool {
+        !newTagName.trimmingCharacters(in: .whitespaces).isEmpty && !tagNameExists
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // Section header
@@ -147,9 +156,10 @@ struct TagPickerView: View {
             // Preview + Create
             HStack {
                 if !newTagName.isEmpty {
-                    let previewColor = MemossColors.tagColors[selectedColorIndex]
+                    // Temporary Tag instance for preview only - not inserted into context
+                    let previewHex = selectedColorHex
                     TagChip(
-                        tag: Tag(name: newTagName, colorHex: previewColor.toHex() ?? "#22C55E"),
+                        tag: Tag(name: newTagName, colorHex: previewHex),
                         isSelected: true
                     )
                 }
@@ -164,11 +174,18 @@ struct TagPickerView: View {
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(newTagName.isEmpty ? MemossColors.textSecondary : MemossColors.brandPrimary)
+                                .fill(canCreateTag ? MemossColors.brandPrimary : MemossColors.textSecondary)
                         )
                 }
                 .buttonStyle(.plain)
-                .disabled(newTagName.isEmpty)
+                .disabled(!canCreateTag)
+            }
+
+            // Duplicate name warning
+            if tagNameExists && !newTagName.isEmpty {
+                Text("A tag with this name already exists")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(MemossColors.error)
             }
         }
         .padding(12)
@@ -180,6 +197,21 @@ struct TagPickerView: View {
 
     private var selectedColor: Color {
         MemossColors.tagColors[selectedColorIndex]
+    }
+
+    /// Returns hex string for selected color, using known hex values to avoid Color conversion issues
+    private var selectedColorHex: String {
+        let hexValues = [
+            "#22C55E", // Moss Green (brandPrimary)
+            "#3B82F6", // Blue
+            "#EC4899", // Pink
+            "#F97316", // Orange
+            "#8B5CF6", // Purple
+            "#14B8A6", // Teal
+            "#EAB308", // Yellow (accent)
+            "#6B7280", // Gray
+        ]
+        return hexValues[selectedColorIndex]
     }
 
     // MARK: - Actions
@@ -199,11 +231,11 @@ struct TagPickerView: View {
     }
 
     private func createTag() {
-        guard !newTagName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        guard canCreateTag else { return }
 
         let tag = Tag(
             name: newTagName.trimmingCharacters(in: .whitespaces),
-            colorHex: selectedColor.toHex() ?? "#22C55E"
+            colorHex: selectedColorHex
         )
         modelContext.insert(tag)
         selectedTags.append(tag)

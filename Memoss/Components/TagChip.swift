@@ -48,7 +48,7 @@ struct TagChip: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(tag.name) tag")
-        .accessibilityHint(isSelected ? "Selected. Double tap to remove" : "Double tap to select")
+        .accessibilityHint(isSelected && onRemove != nil ? "Selected. Tap the remove button to deselect" : isSelected ? "Selected" : "Double tap to select")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
