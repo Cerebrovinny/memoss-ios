@@ -11,7 +11,7 @@ import SwiftData
 
 // MARK: - Remote Models
 
-struct RemoteReminder: Codable, Identifiable {
+nonisolated struct RemoteReminder: Codable, Identifiable, Sendable {
     let id: String
     let title: String
     let notes: String?
@@ -33,7 +33,7 @@ struct RemoteReminder: Codable, Identifiable {
     }
 }
 
-struct RemoteRecurrenceRule: Codable {
+nonisolated struct RemoteRecurrenceRule: Codable, Sendable {
     let type: String
     let weekday: Int?
     let day: Int?
@@ -45,7 +45,7 @@ struct RemoteRecurrenceRule: Codable {
     }
 }
 
-struct RemoteTag: Codable, Identifiable {
+nonisolated struct RemoteTag: Codable, Identifiable, Sendable {
     let id: String
     let name: String
     let colorHex: String
@@ -62,7 +62,7 @@ struct RemoteTag: Codable, Identifiable {
 
 // MARK: - Create/Update Inputs
 
-struct CreateReminderInput: Encodable {
+nonisolated struct CreateReminderInput: Encodable, Sendable {
     let title: String
     let notes: String?
     let scheduledDate: Date
@@ -79,7 +79,7 @@ struct CreateReminderInput: Encodable {
     }
 }
 
-struct UpdateReminderInput: Encodable {
+nonisolated struct UpdateReminderInput: Encodable, Sendable {
     let title: String?
     let notes: String?
     let scheduledDate: Date?
@@ -96,7 +96,7 @@ struct UpdateReminderInput: Encodable {
     }
 }
 
-struct CreateTagInput: Encodable {
+nonisolated struct CreateTagInput: Encodable, Sendable {
     let name: String
     let colorHex: String
 
@@ -106,7 +106,7 @@ struct CreateTagInput: Encodable {
     }
 }
 
-struct UpdateTagInput: Encodable {
+nonisolated struct UpdateTagInput: Encodable, Sendable {
     let name: String?
     let colorHex: String?
 
@@ -118,21 +118,23 @@ struct UpdateTagInput: Encodable {
 
 // MARK: - Sync Service
 
-@MainActor
-final class SyncService: ObservableObject {
+final class SyncService: ObservableObject, @unchecked Sendable {
     static let shared = SyncService()
 
-    @Published private(set) var isSyncing = false
-    @Published private(set) var lastSyncDate: Date?
-    @Published private(set) var syncError: Error?
+    @MainActor @Published private(set) var isSyncing = false
+    @MainActor @Published private(set) var lastSyncDate: Date?
+    @MainActor @Published private(set) var syncError: Error?
 
     private let apiClient: APIClient
 
     init(apiClient: APIClient = .shared) {
         self.apiClient = apiClient
-        self.lastSyncDate = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
+        Task { @MainActor in
+            self.lastSyncDate = UserDefaults.standard.object(forKey: "lastSyncDate") as? Date
+        }
     }
 
+    @MainActor
     var isSyncEnabled: Bool {
         return apiClient.isAuthenticated
     }
@@ -140,22 +142,31 @@ final class SyncService: ObservableObject {
     // MARK: - Full Sync
 
     func syncAll(modelContext: ModelContext) async {
-        guard isSyncEnabled else { return }
+        let enabled = await MainActor.run { isSyncEnabled }
+        guard enabled else { return }
 
-        isSyncing = true
-        syncError = nil
+        await MainActor.run {
+            isSyncing = true
+            syncError = nil
+        }
 
         do {
             try await syncTags(modelContext: modelContext)
             try await syncReminders(modelContext: modelContext)
 
-            lastSyncDate = Date()
-            UserDefaults.standard.set(lastSyncDate, forKey: "lastSyncDate")
+            await MainActor.run {
+                lastSyncDate = Date()
+                UserDefaults.standard.set(lastSyncDate, forKey: "lastSyncDate")
+            }
         } catch {
-            syncError = error
+            await MainActor.run {
+                syncError = error
+            }
         }
 
-        isSyncing = false
+        await MainActor.run {
+            isSyncing = false
+        }
     }
 
     // MARK: - Tag Sync
@@ -163,45 +174,58 @@ final class SyncService: ObservableObject {
     private func syncTags(modelContext: ModelContext) async throws {
         let remoteTags: [RemoteTag] = try await apiClient.request(Endpoint(path: "/v1/tags"))
 
-        let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
+        try await MainActor.run {
+            let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
 
-        // Create map of remote tags by ID
-        let remoteTagMap = Dictionary(uniqueKeysWithValues: remoteTags.map { ($0.id, $0) })
-        let localTagMap = Dictionary(uniqueKeysWithValues: localTags.compactMap { tag -> (String, Tag)? in
-            guard let id = tag.remoteID else { return nil }
-            return (id, tag)
-        })
+            _ = Dictionary(uniqueKeysWithValues: remoteTags.map { ($0.id, $0) })
+            let localTagMap = Dictionary(uniqueKeysWithValues: localTags.compactMap { tag -> (String, Tag)? in
+                guard let id = tag.remoteID else { return nil }
+                return (id, tag)
+            })
 
-        // Update or create local tags from remote
-        for remoteTag in remoteTags {
-            if let localTag = localTagMap[remoteTag.id] {
-                // Update existing
-                if remoteTag.updatedAt > (localTag.updatedAt ?? Date.distantPast) {
-                    localTag.name = remoteTag.name
-                    localTag.colorHex = remoteTag.colorHex
-                    localTag.updatedAt = remoteTag.updatedAt
+            for remoteTag in remoteTags {
+                if let localTag = localTagMap[remoteTag.id] {
+                    if remoteTag.updatedAt > (localTag.updatedAt ?? Date.distantPast) {
+                        localTag.name = remoteTag.name
+                        localTag.colorHex = remoteTag.colorHex
+                        localTag.updatedAt = remoteTag.updatedAt
+                    }
+                } else {
+                    let newTag = Tag(name: remoteTag.name, colorHex: remoteTag.colorHex)
+                    newTag.remoteID = remoteTag.id
+                    newTag.createdAt = remoteTag.createdAt
+                    newTag.updatedAt = remoteTag.updatedAt
+                    modelContext.insert(newTag)
                 }
-            } else {
-                // Create new local tag
-                let newTag = Tag(name: remoteTag.name, colorHex: remoteTag.colorHex)
-                newTag.remoteID = remoteTag.id
-                newTag.createdAt = remoteTag.createdAt
-                newTag.updatedAt = remoteTag.updatedAt
-                modelContext.insert(newTag)
             }
+
+            try modelContext.save()
         }
 
-        // Push local-only tags to remote
-        for localTag in localTags where localTag.remoteID == nil {
-            let input = CreateTagInput(name: localTag.name, colorHex: localTag.colorHex)
+        let localOnlyTags = try await MainActor.run {
+            let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
+            return localTags.filter { $0.remoteID == nil }.map { (id: $0.id, name: $0.name, colorHex: $0.colorHex) }
+        }
+
+        for tagData in localOnlyTags {
+            let input = CreateTagInput(name: tagData.name, colorHex: tagData.colorHex)
             let created: RemoteTag = try await apiClient.request(
                 Endpoint(path: "/v1/tags", method: .POST, body: input)
             )
-            localTag.remoteID = created.id
-            localTag.updatedAt = created.updatedAt
+
+            let tagID = tagData.id
+            await MainActor.run {
+                let descriptor = FetchDescriptor<Tag>(predicate: #Predicate { $0.id == tagID })
+                if let tag = try? modelContext.fetch(descriptor).first {
+                    tag.remoteID = created.id
+                    tag.updatedAt = created.updatedAt
+                }
+            }
         }
 
-        try modelContext.save()
+        try await MainActor.run {
+            try modelContext.save()
+        }
     }
 
     // MARK: - Reminder Sync
@@ -209,138 +233,190 @@ final class SyncService: ObservableObject {
     private func syncReminders(modelContext: ModelContext) async throws {
         let remoteReminders: [RemoteReminder] = try await apiClient.request(Endpoint(path: "/v1/reminders"))
 
-        let localReminders = try modelContext.fetch(FetchDescriptor<Reminder>())
-        let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
+        try await MainActor.run {
+            let localReminders = try modelContext.fetch(FetchDescriptor<Reminder>())
+            let localTags = try modelContext.fetch(FetchDescriptor<Tag>())
 
-        // Create maps
-        let remoteMap = Dictionary(uniqueKeysWithValues: remoteReminders.map { ($0.id, $0) })
-        let localMap = Dictionary(uniqueKeysWithValues: localReminders.compactMap { reminder -> (String, Reminder)? in
-            guard let id = reminder.remoteID else { return nil }
-            return (id, reminder)
-        })
-        let tagByRemoteID = Dictionary(uniqueKeysWithValues: localTags.compactMap { tag -> (String, Tag)? in
-            guard let id = tag.remoteID else { return nil }
-            return (id, tag)
-        })
+            let localMap = Dictionary(uniqueKeysWithValues: localReminders.compactMap { reminder -> (String, Reminder)? in
+                guard let id = reminder.remoteID else { return nil }
+                return (id, reminder)
+            })
+            let tagByRemoteID = Dictionary(uniqueKeysWithValues: localTags.compactMap { tag -> (String, Tag)? in
+                guard let id = tag.remoteID else { return nil }
+                return (id, tag)
+            })
 
-        // Update or create local reminders from remote
-        for remote in remoteReminders {
-            if let local = localMap[remote.id] {
-                // Update if remote is newer
-                if remote.updatedAt > (local.updatedAt ?? Date.distantPast) {
-                    local.title = remote.title
-                    local.notes = remote.notes
-                    local.scheduledDate = remote.scheduledDate
-                    local.isCompleted = remote.isCompleted
-                    local.recurrenceRuleData = encodeRecurrenceRule(remote.recurrenceRule)
-                    local.updatedAt = remote.updatedAt
-                    local.tags = remote.tagIDs.compactMap { tagByRemoteID[$0] }
+            for remote in remoteReminders {
+                if let local = localMap[remote.id] {
+                    if remote.updatedAt > (local.updatedAt ?? Date.distantPast) {
+                        local.title = remote.title
+                        local.notes = remote.notes
+                        local.scheduledDate = remote.scheduledDate
+                        local.isCompleted = remote.isCompleted
+                        local.recurrenceRuleData = encodeRecurrenceRule(remote.recurrenceRule)
+                        local.updatedAt = remote.updatedAt
+                        local.tags = remote.tagIDs.compactMap { tagByRemoteID[$0] }
+                    }
+                } else {
+                    let newReminder = Reminder(
+                        title: remote.title,
+                        scheduledDate: remote.scheduledDate
+                    )
+                    newReminder.notes = remote.notes
+                    newReminder.isCompleted = remote.isCompleted
+                    newReminder.recurrenceRuleData = encodeRecurrenceRule(remote.recurrenceRule)
+                    newReminder.remoteID = remote.id
+                    newReminder.createdAt = remote.createdAt
+                    newReminder.updatedAt = remote.updatedAt
+                    newReminder.tags = remote.tagIDs.compactMap { tagByRemoteID[$0] }
+                    modelContext.insert(newReminder)
                 }
-            } else {
-                // Create new local reminder
-                let newReminder = Reminder(
-                    title: remote.title,
-                    scheduledDate: remote.scheduledDate
+            }
+
+            try modelContext.save()
+        }
+
+        let localOnlyReminders = try await MainActor.run {
+            let localReminders = try modelContext.fetch(FetchDescriptor<Reminder>())
+            return localReminders.filter { $0.remoteID == nil }.map { reminder in
+                (
+                    id: reminder.id,
+                    title: reminder.title,
+                    notes: reminder.notes,
+                    scheduledDate: reminder.scheduledDate,
+                    isCompleted: reminder.isCompleted,
+                    recurrenceRuleData: reminder.recurrenceRuleData,
+                    tagIDs: reminder.tags.compactMap { $0.remoteID }
                 )
-                newReminder.notes = remote.notes
-                newReminder.isCompleted = remote.isCompleted
-                newReminder.recurrenceRuleData = encodeRecurrenceRule(remote.recurrenceRule)
-                newReminder.remoteID = remote.id
-                newReminder.createdAt = remote.createdAt
-                newReminder.updatedAt = remote.updatedAt
-                newReminder.tags = remote.tagIDs.compactMap { tagByRemoteID[$0] }
-                modelContext.insert(newReminder)
             }
         }
 
-        // Push local-only reminders to remote
-        for local in localReminders where local.remoteID == nil {
-            let tagIDs = local.tags.compactMap { $0.remoteID }
+        for reminderData in localOnlyReminders {
             let input = CreateReminderInput(
-                title: local.title,
-                notes: local.notes,
-                scheduledDate: local.scheduledDate,
-                isCompleted: local.isCompleted,
-                recurrenceRule: decodeToRemoteRecurrenceRule(local.recurrenceRuleData),
-                tagIDs: tagIDs
+                title: reminderData.title,
+                notes: reminderData.notes,
+                scheduledDate: reminderData.scheduledDate,
+                isCompleted: reminderData.isCompleted,
+                recurrenceRule: decodeToRemoteRecurrenceRule(reminderData.recurrenceRuleData),
+                tagIDs: reminderData.tagIDs
             )
             let created: RemoteReminder = try await apiClient.request(
                 Endpoint(path: "/v1/reminders", method: .POST, body: input)
             )
-            local.remoteID = created.id
-            local.updatedAt = created.updatedAt
+
+            let reminderID = reminderData.id
+            await MainActor.run {
+                let descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == reminderID })
+                if let reminder = try? modelContext.fetch(descriptor).first {
+                    reminder.remoteID = created.id
+                    reminder.updatedAt = created.updatedAt
+                }
+            }
         }
 
-        try modelContext.save()
+        try await MainActor.run {
+            try modelContext.save()
+        }
     }
 
     // MARK: - Individual Operations
 
     func pushReminder(_ reminder: Reminder, modelContext: ModelContext) async throws {
-        guard isSyncEnabled else { return }
+        let enabled = await MainActor.run { isSyncEnabled }
+        guard enabled else { return }
 
-        let tagIDs = reminder.tags.compactMap { $0.remoteID }
-
-        if let remoteID = reminder.remoteID {
-            let input = UpdateReminderInput(
+        let reminderData = await MainActor.run {
+            (
+                remoteID: reminder.remoteID,
+                id: reminder.id,
                 title: reminder.title,
                 notes: reminder.notes,
                 scheduledDate: reminder.scheduledDate,
                 isCompleted: reminder.isCompleted,
-                recurrenceRule: decodeToRemoteRecurrenceRule(reminder.recurrenceRuleData),
-                tagIDs: tagIDs
+                recurrenceRuleData: reminder.recurrenceRuleData,
+                tagIDs: reminder.tags.compactMap { $0.remoteID }
+            )
+        }
+
+        if let remoteID = reminderData.remoteID {
+            let input = UpdateReminderInput(
+                title: reminderData.title,
+                notes: reminderData.notes,
+                scheduledDate: reminderData.scheduledDate,
+                isCompleted: reminderData.isCompleted,
+                recurrenceRule: decodeToRemoteRecurrenceRule(reminderData.recurrenceRuleData),
+                tagIDs: reminderData.tagIDs
             )
             let updated: RemoteReminder = try await apiClient.request(
                 Endpoint(path: "/v1/reminders/\(remoteID)", method: .PUT, body: input)
             )
-            reminder.updatedAt = updated.updatedAt
+            await MainActor.run {
+                reminder.updatedAt = updated.updatedAt
+            }
         } else {
             let input = CreateReminderInput(
-                title: reminder.title,
-                notes: reminder.notes,
-                scheduledDate: reminder.scheduledDate,
-                isCompleted: reminder.isCompleted,
-                recurrenceRule: decodeToRemoteRecurrenceRule(reminder.recurrenceRuleData),
-                tagIDs: tagIDs
+                title: reminderData.title,
+                notes: reminderData.notes,
+                scheduledDate: reminderData.scheduledDate,
+                isCompleted: reminderData.isCompleted,
+                recurrenceRule: decodeToRemoteRecurrenceRule(reminderData.recurrenceRuleData),
+                tagIDs: reminderData.tagIDs
             )
             let created: RemoteReminder = try await apiClient.request(
                 Endpoint(path: "/v1/reminders", method: .POST, body: input)
             )
-            reminder.remoteID = created.id
-            reminder.updatedAt = created.updatedAt
+            await MainActor.run {
+                reminder.remoteID = created.id
+                reminder.updatedAt = created.updatedAt
+            }
         }
 
-        try modelContext.save()
+        try await MainActor.run {
+            try modelContext.save()
+        }
     }
 
     func deleteReminder(_ reminderID: String) async throws {
-        guard isSyncEnabled else { return }
+        let enabled = await MainActor.run { isSyncEnabled }
+        guard enabled else { return }
         try await apiClient.requestVoid(Endpoint(path: "/v1/reminders/\(reminderID)", method: .DELETE))
     }
 
     func pushTag(_ tag: Tag, modelContext: ModelContext) async throws {
-        guard isSyncEnabled else { return }
+        let enabled = await MainActor.run { isSyncEnabled }
+        guard enabled else { return }
 
-        if let remoteID = tag.remoteID {
-            let input = UpdateTagInput(name: tag.name, colorHex: tag.colorHex)
+        let tagData = await MainActor.run {
+            (remoteID: tag.remoteID, name: tag.name, colorHex: tag.colorHex)
+        }
+
+        if let remoteID = tagData.remoteID {
+            let input = UpdateTagInput(name: tagData.name, colorHex: tagData.colorHex)
             let updated: RemoteTag = try await apiClient.request(
                 Endpoint(path: "/v1/tags/\(remoteID)", method: .PUT, body: input)
             )
-            tag.updatedAt = updated.updatedAt
+            await MainActor.run {
+                tag.updatedAt = updated.updatedAt
+            }
         } else {
-            let input = CreateTagInput(name: tag.name, colorHex: tag.colorHex)
+            let input = CreateTagInput(name: tagData.name, colorHex: tagData.colorHex)
             let created: RemoteTag = try await apiClient.request(
                 Endpoint(path: "/v1/tags", method: .POST, body: input)
             )
-            tag.remoteID = created.id
-            tag.updatedAt = created.updatedAt
+            await MainActor.run {
+                tag.remoteID = created.id
+                tag.updatedAt = created.updatedAt
+            }
         }
 
-        try modelContext.save()
+        try await MainActor.run {
+            try modelContext.save()
+        }
     }
 
     func deleteTag(_ tagID: String) async throws {
-        guard isSyncEnabled else { return }
+        let enabled = await MainActor.run { isSyncEnabled }
+        guard enabled else { return }
         try await apiClient.requestVoid(Endpoint(path: "/v1/tags/\(tagID)", method: .DELETE))
     }
 
@@ -391,7 +467,7 @@ final class SyncService: ObservableObject {
 
 // MARK: - RecurrenceContainer
 
-private struct RecurrenceContainer: Codable {
+private nonisolated struct RecurrenceContainer: Codable, Sendable {
     let rule: RecurrenceRule
     var endDate: Date?
 }

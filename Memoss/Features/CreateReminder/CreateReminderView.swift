@@ -203,15 +203,16 @@ struct CreateReminderView: View {
 
         modelContext.insert(reminder)
 
-        Task { @MainActor in
+        Task {
             await NotificationService.shared.scheduleNotifications(for: reminder)
-
-            // Sync to remote if authenticated
-            try? await SyncService.shared.pushReminder(reminder, modelContext: modelContext)
-
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            dismiss()
         }
+
+        Task.detached(priority: .utility) { [reminder, modelContext] in
+            try? await SyncService.shared.pushReminder(reminder, modelContext: modelContext)
+        }
+
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        dismiss()
     }
 
     // MARK: - Helpers

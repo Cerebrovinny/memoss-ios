@@ -8,29 +8,58 @@
 import Foundation
 import Security
 
-final class KeychainService {
-    static let shared = KeychainService()
+nonisolated final class KeychainService: Sendable {
+    nonisolated static let shared = KeychainService()
 
     private let serviceName = "com.stack4nerds.memoss"
     private let refreshTokenKey = "refresh_token"
 
-    private init() {}
+    private nonisolated init() {}
 
-    // MARK: - Refresh Token
+    // MARK: - Async Operations
 
-    func getRefreshToken() -> String? {
+    func getRefreshTokenAsync() async -> String? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let result = self.getRefreshTokenSync()
+                continuation.resume(returning: result)
+            }
+        }
+    }
+
+    func setRefreshTokenAsync(_ token: String) async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.setRefreshTokenSync(token)
+                continuation.resume()
+            }
+        }
+    }
+
+    func deleteRefreshTokenAsync() async {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.deleteRefreshTokenSync()
+                continuation.resume()
+            }
+        }
+    }
+
+    // MARK: - Sync Operations
+
+    func getRefreshTokenSync() -> String? {
         return getString(forKey: refreshTokenKey)
     }
 
-    func setRefreshToken(_ token: String) {
+    func setRefreshTokenSync(_ token: String) {
         setString(token, forKey: refreshTokenKey)
     }
 
-    func deleteRefreshToken() {
+    func deleteRefreshTokenSync() {
         deleteValue(forKey: refreshTokenKey)
     }
 
-    // MARK: - Generic Keychain Operations
+    // MARK: - Private
 
     private func getString(forKey key: String) -> String? {
         let query: [String: Any] = [

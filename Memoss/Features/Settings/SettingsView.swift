@@ -12,8 +12,10 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @StateObject private var authService = AuthService.shared
-    @StateObject private var syncService = SyncService.shared
+
+    // Observe services via @ObservedObject to avoid direct singleton access in body
+    @ObservedObject private var authService = AuthService.shared
+    @ObservedObject private var syncService = SyncService.shared
 
     @State private var showSignOutAlert = false
     @State private var showDeleteAccountAlert = false
@@ -197,7 +199,7 @@ struct SettingsView: View {
             SignInWithAppleButton(.signIn) { request in
                 request.requestedScopes = [.email]
             } onCompletion: { _ in
-                // Handled by authService
+                // Handled by AuthService.shared
             }
             .signInWithAppleButtonStyle(.black)
             .frame(height: 50)
@@ -264,7 +266,10 @@ struct SettingsView: View {
 
         do {
             try await authService.signInWithApple()
-            await sync()
+            // Run sync detached to not block UI
+            Task.detached(priority: .utility) { [modelContext] in
+                await SyncService.shared.syncAll(modelContext: modelContext)
+            }
         } catch AuthError.cancelled {
             // User cancelled, no error
         } catch {
@@ -275,7 +280,10 @@ struct SettingsView: View {
     }
 
     private func sync() async {
-        await syncService.syncAll(modelContext: modelContext)
+        // Run sync detached to not block UI
+        Task.detached(priority: .utility) { [modelContext] in
+            await SyncService.shared.syncAll(modelContext: modelContext)
+        }
     }
 
     private func signOut() async {

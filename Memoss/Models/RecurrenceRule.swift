@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum RecurrenceRule: Codable, Equatable, Hashable {
+nonisolated enum RecurrenceRule: Codable, Equatable, Hashable, Sendable {
     case none
     case daily
     case hourly
