@@ -10,6 +10,7 @@ import SwiftUI
 struct ReminderCard: View {
     let reminder: Reminder
     let onToggle: () -> Void
+    var onTap: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
@@ -38,6 +39,11 @@ struct ReminderCard: View {
                 }
                 .font(.system(size: 14))
                 .foregroundStyle(MemossColors.textSecondary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                onTap?()
             }
 
             Spacer()

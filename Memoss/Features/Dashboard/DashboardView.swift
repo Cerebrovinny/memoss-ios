@@ -13,6 +13,7 @@ struct DashboardView: View {
     @Query(sort: \Reminder.scheduledDate) private var reminders: [Reminder]
     @AppStorage("userName") private var userName = ""
     @State private var showingCreateReminder = false
+    @State private var selectedReminder: Reminder?
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: .now)
@@ -63,7 +64,8 @@ struct DashboardView: View {
                                 icon: "leaf.fill",
                                 iconColor: MemossColors.brandPrimary,
                                 reminders: incompleteReminders,
-                                onToggle: toggleCompletion
+                                onToggle: toggleCompletion,
+                                onSelect: { selectedReminder = $0 }
                             )
                         }
 
@@ -73,7 +75,8 @@ struct DashboardView: View {
                                 icon: "checkmark.circle.fill",
                                 iconColor: MemossColors.textSecondary,
                                 reminders: completedReminders,
-                                onToggle: toggleCompletion
+                                onToggle: toggleCompletion,
+                                onSelect: { selectedReminder = $0 }
                             )
                         }
                     }
@@ -89,6 +92,9 @@ struct DashboardView: View {
         }
         .sheet(isPresented: $showingCreateReminder) {
             CreateReminderView()
+        }
+        .sheet(item: $selectedReminder) { reminder in
+            EditReminderView(reminder: reminder)
         }
     }
 
@@ -116,6 +122,7 @@ private struct TaskSection: View {
     let iconColor: Color
     let reminders: [Reminder]
     let onToggle: (Reminder) -> Void
+    let onSelect: (Reminder) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -130,9 +137,11 @@ private struct TaskSection: View {
             .accessibilityAddTraits(.isHeader)
 
             ForEach(reminders, id: \.id) { reminder in
-                ReminderCard(reminder: reminder) {
-                    onToggle(reminder)
-                }
+                ReminderCard(
+                    reminder: reminder,
+                    onToggle: { onToggle(reminder) },
+                    onTap: { onSelect(reminder) }
+                )
             }
         }
     }
