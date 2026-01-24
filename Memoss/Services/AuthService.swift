@@ -8,6 +8,7 @@
 import AuthenticationServices
 import Combine
 import Foundation
+import GoogleSignIn
 import UIKit
 
 // MARK: - Auth Service
@@ -19,6 +20,7 @@ final class AuthService: NSObject, ObservableObject {
     @Published private(set) var isAuthenticated = false
     @Published private(set) var userEmail: String?
     @Published private(set) var authProvider: AuthProvider?
+    @Published private(set) var linkedProviders: [String] = []
 
     private let apiClient: APIClient
 
@@ -47,15 +49,17 @@ final class AuthService: NSObject, ObservableObject {
             throw AuthError.invalidCredential
         }
 
-        let tokens = try await sendAppleToken(identityToken)
-        await apiClient.setTokens(access: tokens.accessToken, refresh: tokens.refreshToken)
+        let response = try await sendAppleToken(identityToken)
+        await apiClient.setTokens(access: response.accessToken, refresh: response.refreshToken)
 
         self.userEmail = credential.email
         self.authProvider = .apple
+        self.linkedProviders = response.linkedProviders
         self.isAuthenticated = true
 
         UserDefaults.standard.set(credential.email, forKey: "userEmail")
         UserDefaults.standard.set(AuthProvider.apple.rawValue, forKey: "authProvider")
+        saveLinkedProviders(response.linkedProviders)
     }
 
     private func performAppleSignIn(request: ASAuthorizationAppleIDRequest) async throws -> ASAuthorization {
@@ -69,7 +73,7 @@ final class AuthService: NSObject, ObservableObject {
         }
     }
 
-    private func sendAppleToken(_ token: String) async throws -> TokenResponse {
+    private func sendAppleToken(_ token: String) async throws -> AuthResponse {
         struct SignInRequest: Encodable {
             let idToken: String
 
@@ -88,6 +92,80 @@ final class AuthService: NSObject, ObservableObject {
         return try await apiClient.request(endpoint)
     }
 
+    // MARK: - Link Google Account
+
+    func linkGoogle() async throws {
+        let idToken = try await performGoogleSignIn()
+        try await linkProvider("google", idToken: idToken)
+    }
+
+    private func performGoogleSignIn() async throws -> String {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = scene.windows.first?.rootViewController else {
+            throw AuthError.invalidCredential
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { result, error in
+                if let error = error {
+                    if (error as NSError).code == GIDSignInError.canceled.rawValue {
+                        continuation.resume(throwing: AuthError.cancelled)
+                    } else {
+                        continuation.resume(throwing: AuthError.failed(error))
+                    }
+                    return
+                }
+
+                guard let user = result?.user,
+                      let idToken = user.idToken?.tokenString else {
+                    continuation.resume(throwing: AuthError.invalidCredential)
+                    return
+                }
+
+                continuation.resume(returning: idToken)
+            }
+        }
+    }
+
+    private func linkProvider(_ provider: String, idToken: String) async throws {
+        struct LinkRequest: Encodable {
+            let idToken: String
+
+            enum CodingKeys: String, CodingKey {
+                case idToken = "id_token"
+            }
+        }
+
+        let endpoint = Endpoint(
+            path: "/v1/auth/link/\(provider)",
+            method: .POST,
+            body: LinkRequest(idToken: idToken),
+            requiresAuth: true
+        )
+
+        let response: LinkResponse = try await apiClient.request(endpoint)
+        self.linkedProviders = response.linkedProviders
+        saveLinkedProviders(response.linkedProviders)
+    }
+
+    // MARK: - Unlink Provider
+
+    func unlinkProvider(_ provider: String) async throws {
+        guard linkedProviders.count > 1 else {
+            throw AuthError.cannotUnlinkOnlyProvider
+        }
+
+        let endpoint = Endpoint(
+            path: "/v1/auth/link/\(provider)",
+            method: .DELETE,
+            requiresAuth: true
+        )
+
+        let response: LinkResponse = try await apiClient.request(endpoint)
+        self.linkedProviders = response.linkedProviders
+        saveLinkedProviders(response.linkedProviders)
+    }
+
     // MARK: - Sign Out
 
     func signOut() async {
@@ -103,13 +181,17 @@ final class AuthService: NSObject, ObservableObject {
         } catch {
         }
 
+        GIDSignIn.sharedInstance.signOut()
+
         await apiClient.clearTokens()
         self.isAuthenticated = false
         self.userEmail = nil
         self.authProvider = nil
+        self.linkedProviders = []
 
         UserDefaults.standard.removeObject(forKey: "userEmail")
         UserDefaults.standard.removeObject(forKey: "authProvider")
+        UserDefaults.standard.removeObject(forKey: "linkedProviders")
     }
 
     // MARK: - Delete Account
@@ -121,13 +203,17 @@ final class AuthService: NSObject, ObservableObject {
             requiresAuth: true
         ))
 
+        GIDSignIn.sharedInstance.signOut()
+
         await apiClient.clearTokens()
         self.isAuthenticated = false
         self.userEmail = nil
         self.authProvider = nil
+        self.linkedProviders = []
 
         UserDefaults.standard.removeObject(forKey: "userEmail")
         UserDefaults.standard.removeObject(forKey: "authProvider")
+        UserDefaults.standard.removeObject(forKey: "linkedProviders")
     }
 
     // MARK: - Restore Session
@@ -139,7 +225,16 @@ final class AuthService: NSObject, ObservableObject {
             if let providerString = UserDefaults.standard.string(forKey: "authProvider") {
                 self.authProvider = AuthProvider(rawValue: providerString)
             }
+            if let providers = UserDefaults.standard.stringArray(forKey: "linkedProviders") {
+                self.linkedProviders = providers
+            }
         }
+    }
+
+    // MARK: - Private Helpers
+
+    private func saveLinkedProviders(_ providers: [String]) {
+        UserDefaults.standard.set(providers, forKey: "linkedProviders")
     }
 }
 
@@ -149,6 +244,8 @@ enum AuthError: LocalizedError {
     case invalidCredential
     case cancelled
     case failed(Error)
+    case cannotUnlinkOnlyProvider
+    case providerConflict
 
     var errorDescription: String? {
         switch self {
@@ -158,6 +255,10 @@ enum AuthError: LocalizedError {
             return "Sign in was cancelled"
         case .failed(let error):
             return error.localizedDescription
+        case .cannotUnlinkOnlyProvider:
+            return "Cannot unlink your only authentication method"
+        case .providerConflict:
+            return "This account is already in use"
         }
     }
 }
@@ -195,7 +296,33 @@ private class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, 
     }
 }
 
-// MARK: - Request Types
+// MARK: - Response Types
+
+private struct AuthResponse: Decodable, Sendable {
+    let accessToken: String
+    let refreshToken: String
+    let expiresIn: Int
+    let tokenType: String
+    let linkedProviders: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
+        case tokenType = "token_type"
+        case linkedProviders = "linked_providers"
+    }
+}
+
+private struct LinkResponse: Decodable, Sendable {
+    let linkedProviders: [String]
+    let message: String
+
+    enum CodingKeys: String, CodingKey {
+        case linkedProviders = "linked_providers"
+        case message
+    }
+}
 
 private struct LogoutRequest: Encodable, Sendable {
     let refreshToken: String

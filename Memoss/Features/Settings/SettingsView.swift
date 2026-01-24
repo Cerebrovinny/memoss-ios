@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var showSignOutAlert = false
     @State private var showDeleteAccountAlert = false
     @State private var isLoading = false
+    @State private var isLinkingGoogle = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -144,6 +145,8 @@ struct SettingsView: View {
             }
             .disabled(syncService.isSyncing)
 
+            linkedAccountsSection
+
             Divider()
 
             Button {
@@ -170,6 +173,68 @@ struct SettingsView: View {
         .background(MemossColors.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: MemossColors.brandPrimary.opacity(0.08), radius: 12, y: 4)
+    }
+
+    @ViewBuilder
+    private var linkedAccountsSection: some View {
+        if !authService.linkedProviders.isEmpty {
+            Divider()
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Linked Accounts")
+                    .font(.caption)
+                    .foregroundStyle(MemossColors.textSecondary)
+
+                ForEach(authService.linkedProviders, id: \.self) { provider in
+                    HStack {
+                        Image(systemName: providerIcon(for: provider))
+                            .font(.subheadline)
+                            .foregroundStyle(MemossColors.textPrimary)
+                        Text(provider.capitalized)
+                            .font(.subheadline)
+                        Spacer()
+                        if authService.linkedProviders.count > 1 {
+                            Button("Unlink") {
+                                Task { await unlinkProvider(provider) }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(MemossColors.warning)
+                        }
+                    }
+                }
+            }
+
+            if !authService.linkedProviders.contains("google") {
+                Button {
+                    Task { await linkGoogle() }
+                } label: {
+                    HStack {
+                        if isLinkingGoogle {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "g.circle.fill")
+                        }
+                        Text("Link Google Account")
+                    }
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(MemossColors.brandPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(MemossColors.brandPrimary.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(isLinkingGoogle)
+            }
+        }
+    }
+
+    private func providerIcon(for provider: String) -> String {
+        switch provider {
+        case "apple": return "apple.logo"
+        case "google": return "g.circle.fill"
+        default: return "person.circle"
+        }
     }
 
     private var signInCard: some View {
@@ -293,6 +358,29 @@ struct SettingsView: View {
     private func deleteAccount() async {
         do {
             try await authService.deleteAccount()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func linkGoogle() async {
+        isLinkingGoogle = true
+        errorMessage = nil
+
+        do {
+            try await authService.linkGoogle()
+        } catch AuthError.cancelled {
+            // User cancelled, no error
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLinkingGoogle = false
+    }
+
+    private func unlinkProvider(_ provider: String) async {
+        do {
+            try await authService.unlinkProvider(provider)
         } catch {
             errorMessage = error.localizedDescription
         }
