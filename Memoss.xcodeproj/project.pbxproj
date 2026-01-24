@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		01ACC7032F2A7891006C53C9 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 01ACC7012F2A7890006C53C9 /* GoogleSignIn */; };
+		01ACC7042F2A7891006C53C9 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 01ACC7022F2A7890006C53C9 /* GoogleSignInSwift */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		014EF6F22F218217006C53C9 /* Memoss.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Memoss.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,8 +28,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				01ACC7012F2A7890006C53C9 /* GoogleSignIn in Frameworks */,
-				01ACC7022F2A7890006C53C9 /* GoogleSignInSwift in Frameworks */,
+				01ACC7032F2A7891006C53C9 /* GoogleSignIn in Frameworks */,
+				01ACC7042F2A7891006C53C9 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
