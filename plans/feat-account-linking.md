@@ -438,6 +438,15 @@ No separate component files needed - UI is simple enough to inline.
 | 1 | Backend | ✅ COMPLETED | feat/account-linking-backend |
 | 2 | iOS | ✅ COMPLETED | feat/account-linking-ios |
 
+### Deployment Status
+
+- **Database Migration:** ✅ Applied to production (Neon: wild-surf-63487931) on 2026-01-24
+  - Created `user_providers` table
+  - Migrated 1 existing user provider
+  - Removed `provider`/`provider_id` columns from `users` table
+- **Backend PR:** https://github.com/Cerebrovinny/memoss-backend/pull/1
+- **iOS PR:** https://github.com/Cerebrovinny/memoss-ios/pull/11
+
 ---
 
 ## Security Considerations
