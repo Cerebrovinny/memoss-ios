@@ -15,9 +15,22 @@
 		014EF6F22F218217006C53C9 /* Memoss.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Memoss.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		01ACC7052F2A7892006C53C9 /* Exceptions for "Memoss" folder in "Memoss" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 014EF6F12F218217006C53C9 /* Memoss */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		014EF6F42F218217006C53C9 /* Memoss */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				01ACC7052F2A7892006C53C9 /* Exceptions for "Memoss" folder in "Memoss" target */,
+			);
 			path = Memoss;
 			sourceTree = "<group>";
 		};
