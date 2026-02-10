@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		01ACC7032F2A7891006C53C9 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 01ACC7012F2A7890006C53C9 /* GoogleSignIn */; };
 		01ACC7042F2A7891006C53C9 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 01ACC7022F2A7890006C53C9 /* GoogleSignInSwift */; };
+		01ACC7062F2B8A00006C53C9 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = 01ACC7072F2B8A00006C53C9 /* Lottie */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -43,6 +44,7 @@
 			files = (
 				01ACC7032F2A7891006C53C9 /* GoogleSignIn in Frameworks */,
 				01ACC7042F2A7891006C53C9 /* GoogleSignInSwift in Frameworks */,
+				01ACC7062F2B8A00006C53C9 /* Lottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +89,7 @@
 			packageProductDependencies = (
 				01ACC7012F2A7890006C53C9 /* GoogleSignIn */,
 				01ACC7022F2A7890006C53C9 /* GoogleSignInSwift */,
+				01ACC7072F2B8A00006C53C9 /* Lottie */,
 			);
 			productName = memoss;
 			productReference = 014EF6F22F218217006C53C9 /* Memoss.app */;
@@ -118,6 +121,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				01ACC7002F2A7890006C53C9 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				01ACC7082F2B8A00006C53C9 /* XCRemoteSwiftPackageReference "lottie-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 014EF6F32F218217006C53C9 /* Products */;
@@ -375,6 +379,14 @@
 				minimumVersion = 8.0.0;
 			};
 		};
+		01ACC7082F2B8A00006C53C9 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.4.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -387,6 +399,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 01ACC7002F2A7890006C53C9 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		01ACC7072F2B8A00006C53C9 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 01ACC7082F2B8A00006C53C9 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

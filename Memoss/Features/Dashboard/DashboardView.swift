@@ -38,6 +38,42 @@ struct DashboardView: View {
         reminders.filter { $0.isCompleted }
     }
 
+    // MARK: - Date-Grouped Reminders
+
+    private var overdueReminders: [Reminder] {
+        let startOfToday = Calendar.current.startOfDay(for: Date())
+        return incompleteReminders.filter { $0.nextAlertDate < startOfToday }
+    }
+
+    private var todayReminders: [Reminder] {
+        incompleteReminders.filter { Calendar.current.isDateInToday($0.nextAlertDate) }
+    }
+
+    private var tomorrowReminders: [Reminder] {
+        incompleteReminders.filter { Calendar.current.isDateInTomorrow($0.nextAlertDate) }
+    }
+
+    private var thisWeekReminders: [Reminder] {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        guard let twoDaysFromNow = calendar.date(byAdding: .day, value: 2, to: startOfToday),
+              let endOfWeek = calendar.date(byAdding: .day, value: 7, to: startOfToday) else {
+            return []
+        }
+        return incompleteReminders.filter {
+            $0.nextAlertDate >= twoDaysFromNow && $0.nextAlertDate < endOfWeek
+        }
+    }
+
+    private var laterReminders: [Reminder] {
+        let calendar = Calendar.current
+        let startOfToday = calendar.startOfDay(for: Date())
+        guard let endOfWeek = calendar.date(byAdding: .day, value: 7, to: startOfToday) else {
+            return []
+        }
+        return incompleteReminders.filter { $0.nextAlertDate >= endOfWeek }
+    }
+
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
             LinearGradient(
@@ -71,22 +107,80 @@ struct DashboardView: View {
                             .frame(maxWidth: .infinity)
                             .frame(minHeight: 400)
                     } else {
-                        if !incompleteReminders.isEmpty {
-                            TaskSection(
-                                title: "To Do",
-                                icon: "leaf.fill",
-                                iconColor: MemossColors.brandPrimary,
-                                reminders: incompleteReminders,
+                        // Overdue - Warning styling
+                        if !overdueReminders.isEmpty {
+                            DateGroupSection(
+                                title: "Overdue",
+                                icon: "exclamationmark.circle.fill",
+                                iconColor: MemossColors.error,
+                                accentColor: MemossColors.error,
+                                count: overdueReminders.count,
+                                reminders: overdueReminders,
                                 onToggle: toggleCompletion,
                                 onSelect: { selectedReminder = $0 }
                             )
                         }
 
-                        if !completedReminders.isEmpty {
-                            TaskSection(
-                                title: "Completed",
-                                icon: "checkmark.circle.fill",
+                        // Today - Primary styling
+                        if !todayReminders.isEmpty {
+                            DateGroupSection(
+                                title: "Today",
+                                icon: "sun.max.fill",
+                                iconColor: MemossColors.accent,
+                                accentColor: MemossColors.brandPrimary,
+                                count: todayReminders.count,
+                                reminders: todayReminders,
+                                onToggle: toggleCompletion,
+                                onSelect: { selectedReminder = $0 }
+                            )
+                        }
+
+                        // Tomorrow
+                        if !tomorrowReminders.isEmpty {
+                            DateGroupSection(
+                                title: "Tomorrow",
+                                icon: "sunrise.fill",
+                                iconColor: MemossColors.brandPrimary,
+                                accentColor: MemossColors.brandPrimary,
+                                count: tomorrowReminders.count,
+                                reminders: tomorrowReminders,
+                                onToggle: toggleCompletion,
+                                onSelect: { selectedReminder = $0 }
+                            )
+                        }
+
+                        // This Week
+                        if !thisWeekReminders.isEmpty {
+                            DateGroupSection(
+                                title: "This Week",
+                                icon: "calendar",
                                 iconColor: MemossColors.textSecondary,
+                                accentColor: MemossColors.textSecondary,
+                                count: thisWeekReminders.count,
+                                reminders: thisWeekReminders,
+                                onToggle: toggleCompletion,
+                                onSelect: { selectedReminder = $0 }
+                            )
+                        }
+
+                        // Later
+                        if !laterReminders.isEmpty {
+                            DateGroupSection(
+                                title: "Later",
+                                icon: "clock",
+                                iconColor: MemossColors.textSecondary,
+                                accentColor: MemossColors.textSecondary,
+                                count: laterReminders.count,
+                                reminders: laterReminders,
+                                onToggle: toggleCompletion,
+                                onSelect: { selectedReminder = $0 }
+                            )
+                        }
+
+                        // Completed - Collapsible
+                        if !completedReminders.isEmpty {
+                            CompletedSection(
+                                count: completedReminders.count,
                                 reminders: completedReminders,
                                 onToggle: toggleCompletion,
                                 onSelect: { selectedReminder = $0 }
@@ -113,8 +207,8 @@ struct DashboardView: View {
             SettingsView()
         }
         .task {
-            await APIClient.shared.restoreAuthState()
             Task.detached(priority: .utility) { [modelContext] in
+                await APIClient.shared.restoreAuthState()
                 await SyncService.shared.syncAll(modelContext: modelContext)
             }
         }
@@ -135,7 +229,6 @@ struct DashboardView: View {
             reminder.advanceToNextOccurrence()
         }
 
-        // Reschedule notifications for remaining occurrences
         NotificationService.shared.cancelAllNotifications(for: reminder)
         if !reminder.isCompleted {
             Task {
@@ -164,26 +257,44 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Task Section
+// MARK: - Date Group Section
 
-private struct TaskSection: View {
+private struct DateGroupSection: View {
     let title: String
     let icon: String
     let iconColor: Color
+    let accentColor: Color
+    let count: Int
     let reminders: [Reminder]
     let onToggle: (Reminder) -> Void
     let onSelect: (Reminder) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label {
-                Text(title)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(MemossColors.textPrimary)
-            } icon: {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(iconColor)
+
+                Text(title)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(MemossColors.textPrimary)
+
+                // Count badge
+                Text("\(count)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(accentColor.opacity(0.15))
+                    )
+
+                Spacer()
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(title), \(count) reminders")
             .accessibilityAddTraits(.isHeader)
 
             ForEach(reminders, id: \.id) { reminder in
@@ -194,6 +305,74 @@ private struct TaskSection: View {
                 )
             }
         }
+        .padding(.top, 8)
+    }
+}
+
+// MARK: - Completed Section (Collapsible)
+
+private struct CompletedSection: View {
+    let count: Int
+    let reminders: [Reminder]
+    let onToggle: (Reminder) -> Void
+    let onSelect: (Reminder) -> Void
+
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(MemossColors.textSecondary)
+
+                    Text("Completed")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .foregroundStyle(MemossColors.textSecondary)
+
+                    Text("\(count)")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(MemossColors.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(MemossColors.textSecondary.opacity(0.15))
+                        )
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(MemossColors.textSecondary)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Completed, \(count) reminders, \(isExpanded ? "expanded" : "collapsed")")
+            .accessibilityHint("Double tap to \(isExpanded ? "collapse" : "expand")")
+            .accessibilityAddTraits(.isHeader)
+
+            if isExpanded {
+                ForEach(reminders, id: \.id) { reminder in
+                    ReminderCard(
+                        reminder: reminder,
+                        onToggle: { onToggle(reminder) },
+                        onTap: { onSelect(reminder) }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)),
+                        removal: .opacity
+                    ))
+                }
+            }
+        }
+        .padding(.top, 16)
     }
 }
 

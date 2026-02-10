@@ -16,40 +16,54 @@ struct TagChip: View {
     var onRemove: (() -> Void)?
 
     var body: some View {
-        Button(action: { onTap?() }) {
-            HStack(spacing: isCompact ? 4 : 6) {
-                Circle()
-                    .fill(tag.color)
-                    .frame(width: isCompact ? 6 : 8, height: isCompact ? 6 : 8)
-
-                Text(tag.name)
-                    .font(.system(size: isCompact ? 12 : 14, weight: .medium, design: .rounded))
-
-                if let onRemove, isSelected {
-                    Button(action: onRemove) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(tag.color.opacity(0.6))
-                    }
-                    .buttonStyle(.plain)
+        Group {
+            if let onTap {
+                Button(action: onTap) {
+                    chipContent
                 }
+            } else {
+                chipContent
             }
-            .padding(.horizontal, isCompact ? 8 : 12)
-            .padding(.vertical, isCompact ? 4 : 6)
-            .background(
-                Capsule()
-                    .fill(isSelected ? tag.color.opacity(0.15) : MemossColors.cardBackground)
-            )
-            .overlay(
-                Capsule()
-                    .stroke(isSelected ? tag.color : MemossColors.cardBorder, lineWidth: 1.5)
-            )
-            .foregroundStyle(isSelected ? tag.color : MemossColors.textPrimary)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(tag.name) tag")
         .accessibilityHint(isSelected && onRemove != nil ? "Selected. Tap the remove button to deselect" : isSelected ? "Selected" : "Double tap to select")
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
+    private var chipContent: some View {
+        HStack(spacing: isCompact ? 4 : 6) {
+            Circle()
+                .fill(tag.color)
+                .frame(width: isCompact ? 6 : 8, height: isCompact ? 6 : 8)
+
+            Text(tag.name)
+                .font(.system(size: isCompact ? 12 : 14, weight: .medium, design: .rounded))
+
+            if let onRemove, isSelected {
+                Button(action: onRemove) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(tag.color.opacity(0.6))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(tag.name) tag")
+            }
+        }
+        .padding(.horizontal, isCompact ? 8 : 12)
+        .padding(.vertical, isCompact ? 4 : 6)
+        .background(
+            Capsule()
+                .fill(isSelected ? tag.color.opacity(0.15) : MemossColors.cardBackground)
+        )
+        .overlay(
+            Capsule()
+                .stroke(isSelected ? tag.color : MemossColors.cardBorder, lineWidth: 1.5)
+        )
+        .foregroundStyle(isSelected ? tag.color : MemossColors.textPrimary)
+        .contentShape(Capsule())
     }
 }
 

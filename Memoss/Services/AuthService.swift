@@ -298,7 +298,7 @@ private class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, 
 
 // MARK: - Response Types
 
-private nonisolated(unsafe) struct AuthResponse: Decodable, Sendable {
+private nonisolated struct AuthResponse: Decodable, Sendable {
     let accessToken: String
     let refreshToken: String
     let expiresIn: Int
@@ -314,7 +314,7 @@ private nonisolated(unsafe) struct AuthResponse: Decodable, Sendable {
     }
 }
 
-private nonisolated(unsafe) struct LinkResponse: Decodable, Sendable {
+private nonisolated struct LinkResponse: Decodable, Sendable {
     let linkedProviders: [String]
     let message: String
 
@@ -324,7 +324,7 @@ private nonisolated(unsafe) struct LinkResponse: Decodable, Sendable {
     }
 }
 
-private nonisolated(unsafe) struct LogoutRequest: Encodable, Sendable {
+private nonisolated struct LogoutRequest: Encodable, Sendable {
     let refreshToken: String
 
     enum CodingKeys: String, CodingKey {

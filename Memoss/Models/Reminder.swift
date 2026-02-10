@@ -28,6 +28,9 @@ final class Reminder {
     @Relationship(deleteRule: .nullify)
     var tags: [Tag] = []
 
+    // Snooze support - not persisted to SwiftData, transient only
+    @Transient var snoozedUntil: Date?
+
     // MARK: - Computed Properties
 
     /// Access recurrence rule with automatic encoding/decoding
@@ -44,6 +47,28 @@ final class Reminder {
     /// Convenience property to check if this reminder recurs
     var isRecurring: Bool {
         recurrenceRule != .none
+    }
+
+    /// The next time this reminder will alert (accounts for recurrence and snooze)
+    var nextAlertDate: Date {
+        // If snoozed and snooze time is in the future, show that
+        if let snoozeDate = snoozedUntil, snoozeDate > Date() {
+            return snoozeDate
+        }
+
+        // For recurring reminders, find the next upcoming occurrence
+        if isRecurring {
+            let upcomingOccurrences = recurrenceRule.occurrences(startingFrom: scheduledDate, count: 1)
+            return upcomingOccurrences.first ?? scheduledDate
+        }
+
+        return scheduledDate
+    }
+
+    /// Whether the next alert is at a different time than the base scheduled time
+    var hasUpcomingAlertDifferentFromBase: Bool {
+        let calendar = Calendar.current
+        return !calendar.isDate(nextAlertDate, equalTo: scheduledDate, toGranularity: .minute)
     }
 
     // MARK: - Initialization

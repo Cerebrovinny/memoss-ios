@@ -9,25 +9,25 @@ import SwiftUI
 
 enum MemossColors {
     // Primary (Moss Green)
-    static let brandPrimary = Color(hex: "#22C55E")
-    static let brandPrimaryDark = Color(hex: "#16A34A")
-    static let brandPrimaryLight = Color(hex: "#F0F9F4")
+    static let brandPrimary = Color("BrandPrimary")
+    static let brandPrimaryDark = Color("BrandPrimaryDark")
+    static let brandPrimaryLight = Color("BrandPrimaryLight")
 
     // Neutral
-    static let backgroundStart = Color(hex: "#F9F7F3")
-    static let backgroundEnd = Color(hex: "#F0F9F4")
-    static let textPrimary = Color(hex: "#252320")
-    static let textSecondary = Color(hex: "#A8A298")
-    static let cardBackground = Color(hex: "#FFFFFF")
-    static let cardBorder = Color(hex: "#F9F7F3")
+    static let backgroundStart = Color("BackgroundStart")
+    static let backgroundEnd = Color("BackgroundEnd")
+    static let textPrimary = Color("TextPrimary")
+    static let textSecondary = Color("TextSecondary")
+    static let cardBackground = Color("CardBackground")
+    static let cardBorder = Color("CardBorder")
 
     // Accent
-    static let accent = Color(hex: "#EAB308")
+    static let accent = Color("Accent")
 
     // Semantic
-    static let success = Color(hex: "#22C55E")
-    static let warning = Color(hex: "#EAB308")
-    static let error = Color(hex: "#F43F5E")
+    static let success = Color("Success")
+    static let warning = Color("Warning")
+    static let error = Color("Error")
 
     // Tag Colors
     static let tagColors: [Color] = [

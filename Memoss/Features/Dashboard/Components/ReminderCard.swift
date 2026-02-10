@@ -34,15 +34,16 @@ struct ReminderCard: View {
                     .lineLimit(2)
 
                 HStack(spacing: 8) {
+                    // Show next alert time (accounts for recurrence)
                     Label {
-                        Text(reminder.scheduledDate, format: .dateTime.hour().minute())
+                        Text(reminder.nextAlertDate, format: .dateTime.hour().minute())
                     } icon: {
                         Image(systemName: "clock")
                     }
                     .font(.system(size: 14))
                     .foregroundStyle(MemossColors.textSecondary)
 
-                    // Recurrence indicator
+                    // Recurrence indicator with base time if different
                     if reminder.isRecurring {
                         Label {
                             Text(reminder.recurrenceRule.shortDisplayName)
@@ -97,8 +98,8 @@ struct ReminderCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             reminder.isRecurring
-                ? "\(reminder.title), \(reminder.recurrenceRule.displayName), \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))"
-                : "\(reminder.title), scheduled for \(reminder.scheduledDate.formatted(date: .omitted, time: .shortened))"
+                ? "\(reminder.title), \(reminder.recurrenceRule.displayName), next at \(reminder.nextAlertDate.formatted(date: .omitted, time: .shortened))"
+                : "\(reminder.title), scheduled for \(reminder.nextAlertDate.formatted(date: .omitted, time: .shortened))"
         )
         .accessibilityHint(reminder.isCompleted ? "Double tap to mark as incomplete" : "Double tap to mark as complete")
         .accessibilityAddTraits(reminder.isCompleted ? [.isButton, .isSelected] : .isButton)

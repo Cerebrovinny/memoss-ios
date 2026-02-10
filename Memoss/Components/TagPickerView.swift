@@ -17,6 +17,17 @@ struct TagPickerView: View {
     @State private var isCreatingTag = false
     @State private var newTagName = ""
     @State private var selectedColorIndex = 0
+    @State private var hasAttemptedCreate = false
+    private let tagColorNames = [
+        "Moss Green",
+        "Blue",
+        "Pink",
+        "Orange",
+        "Purple",
+        "Teal",
+        "Yellow",
+        "Gray"
+    ]
 
     private var unselectedTags: [Tag] {
         allTags.filter { tag in
@@ -35,6 +46,10 @@ struct TagPickerView: View {
 
     private var canCreateTag: Bool {
         !newTagName.trimmingCharacters(in: .whitespaces).isEmpty && !tagNameExists
+    }
+
+    private var showDuplicateError: Bool {
+        tagNameExists && (hasAttemptedCreate || !newTagName.trimmingCharacters(in: .whitespaces).isEmpty)
     }
 
     var body: some View {
@@ -127,6 +142,10 @@ struct TagPickerView: View {
             .padding(12)
             .background(MemossColors.backgroundStart)
             .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(showDuplicateError ? MemossColors.error : Color.clear, lineWidth: 1.5)
+            )
 
             // Color picker
             HStack(spacing: 12) {
@@ -136,19 +155,25 @@ struct TagPickerView: View {
 
                 HStack(spacing: 8) {
                     ForEach(Array(MemossColors.tagColors.enumerated()), id: \.offset) { index, color in
-                        Circle()
-                            .fill(color)
-                            .frame(width: 28, height: 28)
-                            .overlay(
-                                Circle()
-                                    .stroke(.white, lineWidth: 2)
-                                    .opacity(selectedColorIndex == index ? 1 : 0)
-                            )
-                            .shadow(color: selectedColorIndex == index ? color.opacity(0.4) : .clear, radius: 4)
-                            .onTapGesture {
-                                selectedColorIndex = index
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            }
+                        Button {
+                            selectedColorIndex = index
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        } label: {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 28, height: 28)
+                                .overlay(
+                                    Circle()
+                                        .stroke(.white, lineWidth: 2)
+                                        .opacity(selectedColorIndex == index ? 1 : 0)
+                                )
+                                .shadow(color: selectedColorIndex == index ? color.opacity(0.4) : .clear, radius: 4)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Select \(tagColorNames[index])")
+                        .accessibilityAddTraits(selectedColorIndex == index ? [.isSelected] : [])
                     }
                 }
             }
@@ -182,7 +207,7 @@ struct TagPickerView: View {
             }
 
             // Duplicate name warning
-            if tagNameExists && !newTagName.isEmpty {
+            if showDuplicateError {
                 Text("A tag with this name already exists")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(MemossColors.error)
@@ -231,6 +256,7 @@ struct TagPickerView: View {
     }
 
     private func createTag() {
+        hasAttemptedCreate = true
         guard canCreateTag else { return }
 
         let tag = Tag(
@@ -249,6 +275,7 @@ struct TagPickerView: View {
             isCreatingTag = false
             newTagName = ""
             selectedColorIndex = 0
+            hasAttemptedCreate = false
         }
     }
 }

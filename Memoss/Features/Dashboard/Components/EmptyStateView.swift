@@ -8,19 +8,23 @@
 import SwiftUI
 
 struct EmptyStateView: View {
+    @State private var isFloating = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(spacing: 24) {
             Spacer()
 
-            Image(systemName: "leaf.fill")
-                .font(.system(size: 72, weight: .medium))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [MemossColors.brandPrimary.opacity(0.6), MemossColors.brandPrimaryDark.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+            Image("mascot-sleep")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 200, height: 200)
+                .offset(y: isFloating ? -8 : 0)
+                .animation(
+                    reduceMotion ? .none : .easeInOut(duration: 2.5).repeatForever(autoreverses: true),
+                    value: isFloating
                 )
+                .onAppear { isFloating = !reduceMotion }
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {
@@ -28,7 +32,7 @@ struct EmptyStateView: View {
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundStyle(MemossColors.textPrimary)
 
-                Text("No reminders for today.\nTime to relax and enjoy the moment!")
+                Text("No reminders yet.\nTap + to create your first one!")
                     .font(.system(size: 16, weight: .regular, design: .rounded))
                     .foregroundStyle(MemossColors.textSecondary)
                     .multilineTextAlignment(.center)

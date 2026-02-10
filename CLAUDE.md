@@ -17,9 +17,11 @@ xcodebuild -project Memoss.xcodeproj -scheme Memoss -sdk iphonesimulator build
 xcodebuild -project Memoss.xcodeproj -scheme Memoss -sdk iphonesimulator test
 ```
 
+There are currently no test targets. Build configuration uses `$(GOOGLE_CLIENT_ID)` and `$(GOOGLE_REVERSED_CLIENT_ID)` from Xcode build settings (referenced in `Info.plist`).
+
 ## Architecture
 
-**Memoss** is a reminder app for iOS 26+ using SwiftUI and SwiftData.
+**Memoss** is a reminder app for iOS 26+ using SwiftUI and SwiftData, with optional cross-device sync via a Go backend.
 
 ### App Entry & Navigation
 
@@ -27,45 +29,72 @@ The app uses `@AppStorage("hasCompletedOnboarding")` to control the root view:
 - **First launch**: Shows `OnboardingView` (feature walkthrough + notification permission request)
 - **Subsequent launches**: Shows `DashboardView` (main reminder list)
 
-On first launch, default tags are seeded via `seedDefaultTags()` in `MemossApp.swift:41-58`.
+On first launch, default tags are seeded via `seedDefaultTags()` in `MemossApp.swift`. `AppDelegate` eagerly initializes singleton services (`APIClient`, `AuthService`, `SyncService`) at launch and registers notification categories.
 
 ### Data Layer
 
-**SwiftData** is used for persistence. The `ModelContainer` is configured at the app level for `Reminder.self` and `Tag.self`.
+**SwiftData** is used for persistence. The `ModelContainer` is configured as a static shared instance on `MemossApp` for `Reminder.self` and `Tag.self`. Views access data via `@Query` macro and `@Environment(\.modelContext)`.
 
 **Models** (`Models/`):
-- `Reminder` - Core data model with `id`, `title`, `scheduledDate`, `isCompleted`, `tags` relationship, and recurrence support via `recurrenceRuleData` (stored as `Codable` Data)
-- `Tag` - Categorization model with `id`, `name`, `colorHex`, inverse relationship to reminders
-- `RecurrenceRule` - Enum (`none`, `daily`, `weekly(weekday:)`, `monthly(day:)`) with occurrence calculation logic
+- `Reminder` - Core model with `id`, `title`, `scheduledDate`, `isCompleted`, `tags` relationship, recurrence via `recurrenceRuleData` (stored as `Codable` Data), and sync fields (`remoteID`, `createdAt`, `updatedAt`). Has `@Transient var snoozedUntil` for non-persisted snooze state.
+- `Tag` - Categorization with `id`, `name`, `colorHex`, inverse relationship to reminders, and sync field (`remoteID`).
+- `RecurrenceRule` - Enum (`none`, `daily`, `hourly`, `weekly(weekday:)`, `monthly(day:)`) with occurrence calculation logic. Stored as JSON-encoded `Data` on `Reminder.recurrenceRuleData`.
 
-Views access data via `@Query` macro and `@Environment(\.modelContext)`.
+### Services Layer
 
-### Services
+All services are singletons accessed via `.shared` and use `@MainActor` for UI/SwiftData interaction.
+
+**AuthService** (`Services/AuthService.swift`):
+- Sign In with Apple (primary) and Google account linking via `GoogleSignIn` SDK
+- Publishes `isAuthenticated`, `userEmail`, `authProvider`, `linkedProviders`
+- Uses `APIClient` to exchange identity tokens with the backend (`/v1/auth/apple`, `/v1/auth/link/google`)
+- Stores session metadata in `UserDefaults` (`userEmail`, `authProvider`, `linkedProviders`)
+
+**APIClient** (`Services/APIClient.swift`):
+- Generic HTTP client with `Endpoint` struct (path, method, body, requiresAuth)
+- Two environments: development (`localhost:8080`), production (`memoss-backend.fly.dev`)
+- Automatic JWT token refresh on 401 responses via `/v1/auth/refresh`
+- Access token held in memory (protected by `NSLock`), refresh token in Keychain
+- `request<T: Decodable>()` for JSON responses, `requestVoid()` for empty responses
+
+**SyncService** (`Services/SyncService.swift`):
+- Last-write-wins sync strategy comparing `updatedAt` timestamps
+- `syncAll()` syncs tags first (dependency), then reminders
+- Local-only records (no `remoteID`) are pushed to backend; remote records are merged by `updatedAt`
+- Individual push methods: `pushReminder()`, `pushTag()`, `deleteReminder()`, `deleteTag()`
+- Sync is only active when authenticated (`isSyncEnabled` checks `apiClient.isAuthenticated`)
+
+**KeychainService** (`Services/KeychainService.swift`):
+- Async and sync wrappers around Security framework for refresh token storage
+- Service name: `com.stack4nerds.memoss`, uses `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`
 
 **NotificationService** (`Services/NotificationService.swift`):
-- Singleton service for scheduling/canceling local notifications
+- Singleton for scheduling/canceling local notifications
 - Handles both one-time and recurring reminders (schedules up to 50 future occurrences)
-- Supports snooze and notification categories with actions (Mark Complete, Snooze)
+- Supports snooze (15min, 60min, custom) and notification categories with actions
 - Integrates with `AppDelegate+Notifications.swift` for handling notification responses
+
+### Backend API Contract
+
+All API endpoints use snake_case JSON. Key routes:
+- `POST /v1/auth/apple` - Exchange Apple identity token for access/refresh tokens
+- `POST /v1/auth/refresh` - Refresh expired access token
+- `POST /v1/auth/logout` - Invalidate refresh token
+- `POST /v1/auth/link/{provider}` - Link additional auth provider
+- `DELETE /v1/auth/link/{provider}` - Unlink auth provider
+- `DELETE /v1/auth/account` - Delete account
+- `GET/POST /v1/reminders`, `PUT/DELETE /v1/reminders/{id}` - CRUD reminders
+- `GET/POST /v1/tags`, `PUT/DELETE /v1/tags/{id}` - CRUD tags
 
 ### Feature Structure
 
-Features are organized in `Features/` with a flat structure:
-```
-Features/
-  ├── Onboarding/OnboardingView.swift       # Self-contained onboarding flow
-  ├── Dashboard/
-  │   ├── DashboardView.swift               # Main screen with reminder list
-  │   └── Components/                       # Feature-specific UI components
-  │       ├── ReminderCard.swift            # Individual reminder display
-  │       ├── GreetingHeader.swift          # Time-based greeting
-  │       ├── EmptyStateView.swift          # Empty list placeholder
-  │       └── FloatingActionButton.swift    # Add reminder FAB
-  ├── CreateReminder/CreateReminderView.swift  # Modal for new reminders
-  └── EditReminder/EditReminderView.swift      # Edit/delete existing reminders
-```
+Features are organized in `Features/` with a flat structure. Each feature view is largely self-contained. Smaller components live in `Components/` subdirectories.
 
-Each feature view is largely self-contained. Smaller components live in `Components/` subdirectories.
+- `Onboarding/OnboardingView.swift` - Self-contained onboarding flow with Lottie animation
+- `Dashboard/DashboardView.swift` - Main screen with reminder list, plus `Components/` (ReminderCard, GreetingHeader, EmptyStateView, FloatingActionButton)
+- `CreateReminder/CreateReminderView.swift` - Modal for new reminders
+- `EditReminder/EditReminderView.swift` - Edit/delete existing reminders
+- `Settings/SettingsView.swift` - Auth, sync, account linking/unlinking, about section
 
 ### Shared Components
 
@@ -74,6 +103,11 @@ Reusable components in `Components/`:
 - `TagChip` - Individual tag display capsule
 - `RecurrencePickerView` - Recurrence frequency selector with end date option
 - `FlowLayout` - Horizontal wrapping layout for tags
+
+### Dependencies (SPM)
+
+- **GoogleSignIn-iOS** (8.0.0) - Google Sign-In for account linking
+- **Lottie** (4.6.0) - Animation playback for onboarding mascot (`Resources/mascot-welcome.json`)
 
 ### Design System
 
@@ -101,14 +135,7 @@ Key colors:
 
 ### Plans Directory
 
-Feature plans live in `plans/` with naming convention `feat-{feature-name}.md`. Current plans:
-- `feat-onboarding-screen.md` - Onboarding flow
-- `feat-main-dashboard.md` - Dashboard and reminder list
-- `feat-create-reminder.md` - Reminder creation
-- `feat-edit-delete-reminder.md` - Edit/delete functionality
-- `feat-local-notifications.md` - Notification scheduling
-- `feat-tags-system.md` - Tag categorization
-- `feat-recurring-reminders.md` - Recurrence support
+Feature plans live in `plans/` with naming convention `feat-{feature-name}.md`.
 
 ## Code Conventions
 
@@ -118,3 +145,6 @@ Feature plans live in `plans/` with naming convention `feat-{feature-name}.md`. 
 - Accessibility labels and hints on interactive elements
 - Minimum 44pt touch targets for buttons
 - Use `@MainActor` for services that interact with UI or SwiftData context
+- All `Codable` types that cross isolation boundaries are marked `nonisolated` and `Sendable`
+- API request/response types use `CodingKeys` mapping to snake_case
+- Conventional Commits: `feat:`, `fix:`, `docs:` with optional scopes like `feat(recurrence):`

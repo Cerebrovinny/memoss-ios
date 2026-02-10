@@ -17,6 +17,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         NotificationService.shared.registerCategories()
+
+        // Eagerly initialize service singletons during launch
+        // so first button taps aren't blocked by lazy initialization
+        _ = APIClient.shared
+        _ = AuthService.shared
+        _ = SyncService.shared
+
+        // Pre-warm the haptic engine so first feedback is instant
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+
         return true
     }
 
@@ -123,10 +134,23 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     private func handleSnooze(response: UNNotificationResponse, minutes: Int) async {
+        // Schedule the snoozed notification
         await NotificationService.shared.snoozeNotification(
             from: response,
             duration: TimeInterval(minutes * 60)
         )
+
+        // Update the reminder's snoozedUntil so UI reflects the snooze
+        let reminderId = response.notification.request.identifier
+        let baseId = extractBaseId(from: reminderId)
+
+        guard let uuid = UUID(uuidString: baseId) else { return }
+
+        let context = MemossApp.sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<Reminder>(predicate: #Predicate { $0.id == uuid })
+        if let reminder = try? context.fetch(descriptor).first {
+            reminder.snoozedUntil = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        }
     }
 
     /// Simple integer parsing for snooze duration.
