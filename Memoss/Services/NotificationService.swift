@@ -18,6 +18,11 @@ final class NotificationService {
 
     // MARK: - Public API
 
+    /// Returns the current notification authorization status
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
     /// Schedule notification(s) for a reminder
     /// For one-time reminders: schedules a single notification
     /// For recurring reminders: schedules next N occurrences

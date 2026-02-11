@@ -22,6 +22,7 @@ struct EditReminderView: View {
     @State private var selectedTags: [Tag]
     @State private var recurrenceRule: RecurrenceRule
     @State private var recurrenceEndDate: Date?
+    @State private var showNotificationDeniedAlert = false
     @FocusState private var isTitleFocused: Bool
 
     init(reminder: Reminder) {
@@ -117,6 +118,19 @@ struct EditReminderView: View {
                 Button("Cancel", role: .cancel) { }
             } message: {
                 Text("This cannot be undone.")
+            }
+            .alert("Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                    dismiss()
+                }
+                Button("Not Now", role: .cancel) {
+                    dismiss()
+                }
+            } message: {
+                Text("Enable notifications in Settings so you don't miss your reminders.")
             }
         }
         .interactiveDismissDisabled(hasUnsavedChanges)
@@ -252,8 +266,17 @@ struct EditReminderView: View {
         if !reminder.isCompleted {
             NotificationService.shared.cancelAllNotifications(for: reminder)
             Task {
+                let status = await NotificationService.shared.authorizationStatus()
                 await NotificationService.shared.scheduleNotifications(for: reminder)
+
+                if status == .denied {
+                    showNotificationDeniedAlert = true
+                } else {
+                    dismiss()
+                }
             }
+        } else {
+            dismiss()
         }
 
         Task.detached(priority: .utility) { [reminder, modelContext] in
@@ -261,7 +284,6 @@ struct EditReminderView: View {
         }
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        dismiss()
     }
 
     private func deleteReminder() {
