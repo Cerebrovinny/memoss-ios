@@ -219,13 +219,14 @@ struct CreateReminderView: View {
 
         Task {
             let status = await NotificationService.shared.authorizationStatus()
-            await NotificationService.shared.scheduleNotifications(for: reminder)
 
             if status == .denied {
                 showNotificationDeniedAlert = true
-            } else {
-                dismiss()
+                return
             }
+
+            await NotificationService.shared.scheduleNotifications(for: reminder)
+            dismiss()
         }
 
         Task.detached(priority: .utility) { [reminder, modelContext] in
