@@ -19,6 +19,7 @@ struct CreateReminderView: View {
     @State private var selectedTags: [Tag] = []
     @State private var recurrenceRule: RecurrenceRule = .none
     @State private var recurrenceEndDate: Date?
+    @State private var showNotificationDeniedAlert = false
     @FocusState private var isTitleFocused: Bool
 
     private var isTitleValid: Bool {
@@ -87,6 +88,19 @@ struct CreateReminderView: View {
                 }
             }
             .interactiveDismissDisabled(isTitleValid)
+            .alert("Notifications Disabled", isPresented: $showNotificationDeniedAlert) {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                    dismiss()
+                }
+                Button("Not Now", role: .cancel) {
+                    dismiss()
+                }
+            } message: {
+                Text("Enable notifications in Settings so you don't miss your reminders.")
+            }
         }
         .onAppear {
             isTitleFocused = true
@@ -204,7 +218,15 @@ struct CreateReminderView: View {
         modelContext.insert(reminder)
 
         Task {
+            let status = await NotificationService.shared.authorizationStatus()
+
+            if status == .denied {
+                showNotificationDeniedAlert = true
+                return
+            }
+
             await NotificationService.shared.scheduleNotifications(for: reminder)
+            dismiss()
         }
 
         Task.detached(priority: .utility) { [reminder, modelContext] in
@@ -212,7 +234,6 @@ struct CreateReminderView: View {
         }
 
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        dismiss()
     }
 
     // MARK: - Helpers
